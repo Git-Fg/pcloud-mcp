@@ -1,0 +1,4 @@
+[test]
+# Scoping the test runner to src/ avoids walking the vendored MCP reference
+# repos under references/ (which are not part of this project).
+root = "src"

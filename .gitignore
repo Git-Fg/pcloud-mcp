@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+references/*/node_modules
+references/dataforseo-mcp
+references/figma-mcp
+references/firebase-mcp
+references/perplexity-mcp
+generated/
+.agents/
+/pcloud.ts
