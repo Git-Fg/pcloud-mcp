@@ -19,8 +19,19 @@
 - No test performed across account types (free vs premium, EU vs US regions).
 - It remains possible that premium or region-specific accounts receive different capabilities on the above endpoints.
 
-## How to verify
-1. Obtain a `/getauth` session token (username/password flow).
-2. Run the same falsification test: compare `?auth=` vs `?access_token=` on each endpoint.
-3. For listrevisions, additionally test against a file with known revision count >0.
-4. Document results in this file.
+## How to verify (blocked)
+
+The verification path requires a `/getauth` session token (username/password
+flow). **This is not available on this host** — only an OAuth access token is
+provisioned, and there is no path to obtain a `/getauth` token without
+pCloud account credentials in a form the legacy flow accepts. The hypotheses
+above therefore stay open by necessity, not by lack of effort. If a
+`/getauth` token ever becomes available:
+
+1. Run the same falsification test used for the trash family: compare
+   `?auth=<token>` vs `?access_token=<token>` on each endpoint.
+2. For listrevisions, additionally test against a file with known revision
+   count >0 (pCloud returns 1000 for "no revisions" too, conflating the
+   signal).
+3. Document results in this file and update `RESULT_HINTS[1000]` and the
+   three SKILL.md files accordingly.
