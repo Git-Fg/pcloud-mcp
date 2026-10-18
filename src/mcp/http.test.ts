@@ -164,6 +164,22 @@ describe('http transport security', () => {
     expect(res.status).not.toBe(401);
   });
 
+  it('treats ::1 as loopback: no throw and no warning', async () => {
+    process.env.BIND_ADDRESS = '::1';
+    const errors: string[] = [];
+    const original = console.error;
+    console.error = (...args: unknown[]) => {
+      errors.push(args.map(String).join(' '));
+    };
+    try {
+      const { createHttpApp } = await import('./http.js');
+      expect(() => createHttpApp()).not.toThrow();
+    } finally {
+      console.error = original;
+    }
+    expect(errors).toHaveLength(0);
+  });
+
   it('refuses to build a non-loopback app without MCP_BEARER_TOKEN', async () => {
     process.env.BIND_ADDRESS = '0.0.0.0';
     const { createHttpApp } = await import('./http.js');

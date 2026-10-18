@@ -8,6 +8,11 @@ import type { Request, Response, NextFunction } from 'express';
  * Creates the HTTP app using SDK v2's createMcpHandler + toNodeHandler.
  * The SDK handles all the Streamable HTTP protocol details internally.
  */
+const LOOPBACK_ADDRESSES = ['127.0.0.1', 'localhost', '::1'] as const;
+
+const isLoopback = (address: string): boolean =>
+  (LOOPBACK_ADDRESSES as readonly string[]).includes(address);
+
 export function createHttpApp(): express.Application {
   const app = express();
 
@@ -75,7 +80,7 @@ export function createHttpApp(): express.Application {
 
   // The HTTP transport holds the account's static token; require either a
   // loopback bind or an explicit bearer token before serving MCP traffic.
-  if (BIND_ADDRESS !== '127.0.0.1' && BIND_ADDRESS !== 'localhost' && BIND_ADDRESS !== '::1') {
+  if (!isLoopback(BIND_ADDRESS)) {
     if (!process.env.MCP_BEARER_TOKEN) {
       throw new Error(
         `Refusing to bind ${BIND_ADDRESS} without MCP_BEARER_TOKEN. ` +
@@ -103,10 +108,10 @@ export function createHttpApp(): express.Application {
     nodeHandler(req, res, next);
   });
 
-  if (BIND_ADDRESS !== '127.0.0.1' && BIND_ADDRESS !== 'localhost') {
+  if (!isLoopback(BIND_ADDRESS)) {
     console.error(
-      `WARNING: Binding to ${BIND_ADDRESS} exposes the server to network. ` +
-      `MCP_BEARER_TOKEN is required when BIND_ADDRESS is not loopback.`
+      `WARNING: Binding to ${BIND_ADDRESS} exposes the server to the network. ` +
+      `MCP_BEARER_TOKEN is enforced for /mcp; /health stays unauthenticated.`
     );
   }
 
