@@ -59,15 +59,18 @@ const CANNED: Record<string, unknown> = {
 
 let originalFetch: typeof globalThis.fetch;
 let requests: { url: string; method: string }[] = [];
+let cannedOverride: Record<string, unknown> | null = null;
 
 beforeEach(() => {
   originalFetch = globalThis.fetch;
   requests = [];
+  cannedOverride = null;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     requests.push({ url, method: init?.method ?? 'GET' });
     const endpoint = new URL(url).pathname.replace(/^\//, '');
-    const body = CANNED[endpoint] ?? { result: 0 };
+    const override = cannedOverride?.[endpoint];
+    const body = override ?? CANNED[endpoint] ?? { result: 0 };
     return new Response(JSON.stringify(body), { status: 200 });
   }) as typeof fetch;
 });
@@ -248,5 +251,68 @@ describe('batch-2 tools (mocked pCloud)', () => {
     expect(sent.get('tofolderid')).toBe('0');
     expect(sent.get('password')).toBe('s3cret');
     expect(sent.get('overwrite')).toBe('skip');
+  });
+
+  // Defensive guards added in Round 3: every link tool must throw a clear
+  // error (not 'undefined is not an object') when pCloud returns result:0
+  // without the hosts/api array, or checksumfile without a sha1.
+  it('getfilelink throws when hosts is missing from the response', async () => {
+    cannedOverride = { getfilelink: { result: 0, path: '/x' } };
+    const { getfilelinkHandler } = await import('./getfilelink.js');
+    await expect(getfilelinkHandler({ fileid: 1 }, undefined)).rejects.toThrow(/no download hosts/);
+  });
+
+  it('getaudiolink throws when hosts is an empty array', async () => {
+    cannedOverride = { getaudiolink: { result: 0, hosts: [], path: '/x' } };
+    const { getaudiolinkHandler } = await import('./getaudiolink.js');
+    await expect(getaudiolinkHandler({ fileid: 1 }, undefined)).rejects.toThrow(/no stream hosts/);
+  });
+
+  it('getvideolink throws when hosts is missing from the response', async () => {
+    cannedOverride = { getvideolink: { result: 0, path: '/x' } };
+    const { getvideolinkHandler } = await import('./getvideolink.js');
+    await expect(getvideolinkHandler({ fileid: 1 }, undefined)).rejects.toThrow(/no stream hosts/);
+  });
+
+  it('getthumblink throws when hosts is missing from the response', async () => {
+    cannedOverride = { getthumblink: { result: 0, path: '/x', size: '32x32' } };
+    const { getthumblinkHandler } = await import('./getthumblink.js');
+    await expect(getthumblinkHandler({ fileid: 1, size: '32x32' }, undefined)).rejects.toThrow(
+      /no thumbnail hosts/
+    );
+  });
+
+  it('getapiserver throws when api is an empty array', async () => {
+    cannedOverride = { getapiserver: { result: 0, api: [] } };
+    const { getapiserverHandler } = await import('./getapiserver.js');
+    await expect(getapiserverHandler({}, undefined)).rejects.toThrow(/empty server list/);
+  });
+
+  it('checksumfile throws when pCloud returns no sha1 (server anomaly)', async () => {
+    cannedOverride = { checksumfile: { result: 0, sha256: 'x', metadata: { name: 'a' } } };
+    const { checksumfileHandler } = await import('./checksumfile.js');
+    await expect(checksumfileHandler({ fileid: 1 }, undefined)).rejects.toThrow(/no sha1 checksum/);
+  });
+
+  // Per-dimension bounds for getthumblink.size and getvideolink.resolution.
+  it('getthumblink rejects a size outside the documented per-dimension bounds', async () => {
+    const { GetthumblinkInputSchema } = await import('./getthumblink.js');
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '99x99' }).success).toBe(false);
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '12x720' }).success).toBe(false);
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '1280x10' }).success).toBe(false);
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '1280x721' }).success).toBe(false);
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '9999x9999' }).success).toBe(false);
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '16x16' }).success).toBe(true);
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '2048x1024' }).success).toBe(true);
+    expect(GetthumblinkInputSchema.safeParse({ fileid: 1, size: '80x80' }).success).toBe(true);
+  });
+
+  it('getvideolink rejects a resolution outside the documented range', async () => {
+    const { GetvideolinkInputSchema } = await import('./getvideolink.js');
+    expect(GetvideolinkInputSchema.safeParse({ fileid: 1, resolution: '63x480' }).success).toBe(false);
+    expect(GetvideolinkInputSchema.safeParse({ fileid: 1, resolution: '1281x480' }).success).toBe(false);
+    expect(GetvideolinkInputSchema.safeParse({ fileid: 1, resolution: '640x961' }).success).toBe(false);
+    expect(GetvideolinkInputSchema.safeParse({ fileid: 1, resolution: '64x64' }).success).toBe(true);
+    expect(GetvideolinkInputSchema.safeParse({ fileid: 1, resolution: '1280x960' }).success).toBe(true);
   });
 });
