@@ -18,7 +18,7 @@ const transport = new StdioClientTransport({
   command: 'bun',
   args: ['run', 'src/index.ts'],
   env: { ...process.env, PCLOUD_ACCESS_TOKEN: TOKEN },
-  cwd: '/Users/felix/Documents/pcloud_mcp',
+  cwd: process.cwd(),
 });
 
 const client = new Client(

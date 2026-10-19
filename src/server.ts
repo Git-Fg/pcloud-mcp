@@ -1,23 +1,32 @@
 import { McpServer } from '@modelcontextprotocol/server';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { registerPcloudTools } from './core/tools/index.js';
 import { validateConfig } from './core/config.js';
 
-const PKG_PATH = join(
-  dirname(fileURLToPath(import.meta.url)),
-  '..',
-  '..',
-  'package.json'
-);
+type Pkg = { name?: string; version?: string; description?: string };
 
-function readPkg(): { name?: string; version?: string; description?: string } {
-  try {
-    return JSON.parse(readFileSync(PKG_PATH, 'utf-8'));
-  } catch {
-    return {};
+function readPkg(): Pkg {
+  // Walk up from this module's directory to the nearest package.json. Robust
+  // against any layout (source, dist, tests, future moves) — the previous
+  // join(..., '..', '..', 'package.json') silently read the user's home dir
+  // when running from src/ and the user's parent dir when running from dist/.
+  let dir = dirname(fileURLToPath(import.meta.url));
+  for (let i = 0; i < 8; i++) {
+    const candidate = join(dir, 'package.json');
+    if (existsSync(candidate)) {
+      try {
+        return JSON.parse(readFileSync(candidate, 'utf-8'));
+      } catch {
+        return {};
+      }
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
   }
+  return {};
 }
 
 export function createServer(): McpServer {

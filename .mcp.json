@@ -2,7 +2,7 @@
   "mcpServers": {
     "pcloud": {
       "command": "sh",
-      "args": ["-c", "set -a; . ./.env; exec bun run src/index.ts"],
+      "args": ["-c", "set -a && . ./.env && exec bun run src/index.ts"],
       "cwd": "/Users/felix/Documents/pcloud_mcp"
     }
   }
