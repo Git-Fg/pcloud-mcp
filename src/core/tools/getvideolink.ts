@@ -47,6 +47,7 @@ export async function getvideolinkHandler(
   content: { type: "text"; text: string }[];
   structuredContent: z.infer<typeof GetvideolinkOutputSchema>;
 }> {
+  args = GetvideolinkInputSchema.parse(args);
   const client = new PcloudHttpClient();
   const params: Record<string, string | number | boolean> =
     args.fileid !== undefined ? { fileid: args.fileid } : { path: args.path! };

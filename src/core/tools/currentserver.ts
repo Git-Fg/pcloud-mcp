@@ -18,6 +18,7 @@ export async function currentserverHandler(
   content: { type: "text"; text: string }[];
   structuredContent: z.infer<typeof CurrentserverOutputSchema>;
 }> {
+  CurrentserverInputSchema.parse(_args);
   const client = new PcloudHttpClient();
   const response = await client.json<z.infer<typeof CurrentserverOutputSchema>>('currentserver', {});
   return {

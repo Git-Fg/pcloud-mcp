@@ -10,7 +10,7 @@ cp .env.example .env          # then fill in PCLOUD_ACCESS_TOKEN
 bun run build                 # tsc → dist/
 bun run dev                   # stdio transport
 bun run dev:http              # http transport on http://127.0.0.1:3000
-bun test                      # 58 unit + transport tests
+bun test                      # unit + transport tests (73)
 bun run scripts/live-mcp-e2e.ts  # exercises the real pCloud API (needs the token)
 ```
 

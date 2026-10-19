@@ -14,7 +14,7 @@ export const DownloadfileInputSchema = z
     progresshash: z.string().optional()
       .describe('Hash used with uploadprogress to poll download progress'),
   })
-  .refine((v) => (v.folderid === undefined) !== (v.path === undefined) || (v.folderid === undefined && v.path === undefined), {
+  .refine((v) => v.folderid === undefined || v.path === undefined, {
     message: 'Provide at most one of folderid or path (or neither for root)',
   });
 
@@ -35,6 +35,7 @@ export async function downloadfileHandler(
   content: { type: "text"; text: string }[];
   structuredContent: z.infer<typeof DownloadfileOutputSchema>;
 }> {
+  args = DownloadfileInputSchema.parse(args);
   const client = new PcloudHttpClient();
   const params: Record<string, string | number> = { url: args.url };
   if (args.folderid !== undefined) params.folderid = args.folderid;

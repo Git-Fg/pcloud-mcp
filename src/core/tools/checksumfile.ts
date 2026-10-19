@@ -27,6 +27,7 @@ export async function checksumfileHandler(
   content: { type: "text"; text: string }[];
   structuredContent: z.infer<typeof ChecksumfileOutputSchema>;
 }> {
+  args = ChecksumfileInputSchema.parse(args);
   const client = new PcloudHttpClient();
   const params: Record<string, string | number> =
     args.fileid !== undefined ? { fileid: args.fileid } : { path: args.path! };

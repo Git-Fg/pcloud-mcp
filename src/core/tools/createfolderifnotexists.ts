@@ -5,11 +5,11 @@ import { PcloudMetadata, PcloudSuccess } from './schemas.js';
 export const CreatefolderifnotexistsInputSchema = z
   .object({
     folderid: z.number().int().gte(0).optional().describe('Parent folder ID (0 for root)'),
-    name: z.string().min(1).describe('Name of the folder to create or return'),
+    name: z.string().min(1).optional().describe('Name of the folder to create or return'),
     path: z.string().optional().describe('Full path to the folder (discouraged; prefer folderid + name)'),
   })
-  .refine((v) => (v.folderid !== undefined) !== (v.path !== undefined), {
-    message: 'Provide exactly one of folderid+name or path',
+  .refine((v) => (v.path !== undefined ? v.name === undefined && v.folderid === undefined : v.name !== undefined), {
+    message: 'Provide either path, or folderid + name',
   });
 
 export const CreatefolderifnotexistsOutputSchema = PcloudSuccess.extend({
@@ -29,6 +29,7 @@ export async function createfolderifnotexistsHandler(
   content: { type: "text"; text: string }[];
   structuredContent: z.infer<typeof CreatefolderifnotexistsOutputSchema>;
 }> {
+  args = CreatefolderifnotexistsInputSchema.parse(args);
   const client = new PcloudHttpClient();
   const params: Record<string, string | number> = {};
   if (args.path !== undefined) {

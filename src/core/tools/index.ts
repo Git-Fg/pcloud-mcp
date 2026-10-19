@@ -655,11 +655,11 @@ export function registerPcloudTools(server: McpServer): void {
       inputSchema: z
         .object({
           folderid: z.number().int().gte(0).optional().describe('Parent folder ID (0 for root)'),
-          name: z.string().min(1).describe('Folder name'),
+          name: z.string().min(1).optional().describe('Folder name'),
           path: z.string().optional().describe('Full path (discouraged; prefer folderid + name)'),
         })
-        .refine((v) => (v.folderid !== undefined) !== (v.path !== undefined), {
-          message: 'Provide exactly one of folderid+name or path',
+        .refine((v) => (v.path !== undefined ? v.name === undefined && v.folderid === undefined : v.name !== undefined), {
+          message: 'Provide either path, or folderid + name',
         }),
       outputSchema: z.object({}).passthrough(),
       annotations: { ...MUTATING, idempotentHint: true },

@@ -7,6 +7,10 @@
  */
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { mkdtempSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const TOKEN = process.env.PCLOUD_ACCESS_TOKEN;
 if (!TOKEN) {
@@ -30,6 +34,7 @@ await client.connect(transport);
 let pass = 0;
 let fail = 0;
 const results: Array<{ tool: string; ok: boolean; result?: unknown; error?: string }> = [];
+let tmpDir: string | undefined;
 
 async function call(tool: string, args: Record<string, unknown>, expectError = false) {
   try {
@@ -73,19 +78,18 @@ try {
   //    deletefolderrecursive on the test folder (deletefile rejects folderid;
   //    the folder must go through the folder-deletion tool).
   if (folderId !== undefined) {
-    const tmp = `/tmp/mcp-e2e-${Date.now()}.txt`;
+    tmpDir = mkdtempSync(join(tmpdir(), 'pcloud-mcp-e2e-'));
+    const tmp = join(tmpDir, 'e2e.txt');
     await Bun.write(tmp, 'mcp-e2e');
     await call('uploadfile', { filePath: tmp, folderid: folderId, filename: 'e2e.txt' });
     await call('getfilelink', { path: `/${tag}/e2e.txt` });
     await call('deletefile', { path: `/${tag}/e2e.txt` });
     await call('deletefolderrecursive', { folderid: folderId });
-    await Bun.write(tmp, '');
-    const { unlink } = await import('node:fs/promises');
-    await unlink(tmp).catch(() => {});
   } else {
     console.log('SKIP upload/getfilelink/delete (no folder id)');
   }
 } finally {
+  if (tmpDir !== undefined) await rm(tmpDir, { recursive: true, force: true });
   await client.close();
 }
 

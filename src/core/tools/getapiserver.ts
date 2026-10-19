@@ -16,6 +16,7 @@ export async function getapiserverHandler(
   content: { type: "text"; text: string }[];
   structuredContent: z.infer<typeof GetapiserverOutputSchema>;
 }> {
+  GetapiserverInputSchema.parse(_args);
   const client = new PcloudHttpClient();
   const response = await client.json<z.infer<typeof GetapiserverOutputSchema>>('getapiserver', {});
   const closest = response.api[0] ?? 'unknown';
