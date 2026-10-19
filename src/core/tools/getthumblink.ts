@@ -8,7 +8,17 @@ export const GetthumblinkInputSchema = z
     path: z.string().optional().describe('Path to the image (mutually exclusive with fileid)'),
     size: z
       .string()
-      .regex(/^\d{2,4}x\d{2,4}$/)
+      .regex(/^\d{2,4}x\d{2,4}$/, 'Format must be WIDTHxHEIGHT, e.g. 1280x720')
+      .refine(
+        (s) => {
+          const [w, h] = s.split('x').map(Number) as [number, number];
+          return (
+            w >= 16 && w <= 2048 && h >= 16 && h <= 1024 &&
+            (w % 4 === 0 || w % 5 === 0) && (h % 4 === 0 || h % 5 === 0)
+          );
+        },
+        { message: 'width must be 16–2048 and height 16–1024; each dimension divisible by 4 or 5' }
+      )
       .describe('Thumbnail size, WIDTHxHEIGHT (width 16–2048, height 16–1024; both divisible by 4 or 5)'),
     crop: z.boolean().optional().describe('If true, crop to exactly the requested size (may cut edges)'),
     type: z.literal('png').optional().describe('Only "png" is documented (default format is jpeg)'),
@@ -42,9 +52,12 @@ export async function getthumblinkHandler(
     'getthumblink',
     params
   );
-  const thumbUrl = response.hosts.length
-    ? `https://${response.hosts[0]}${response.path}`
-    : 'No thumbnail URL available';
+  if (!Array.isArray(response.hosts) || response.hosts.length === 0) {
+    throw new Error(
+      'getthumblink: pCloud returned result:0 but no thumbnail hosts. No thumbnail may exist for this file.'
+    );
+  }
+  const thumbUrl = `https://${response.hosts[0]}${response.path}`;
   return {
     content: [{ type: "text", text: `Thumbnail URL (${response.size}): ${thumbUrl}` }],
     structuredContent: response,

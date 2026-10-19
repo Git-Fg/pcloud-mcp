@@ -50,9 +50,12 @@ export async function getfilelinkHandler(
     'getfilelink',
     params
   );
-  const downloadUrl = response.hosts.length
-    ? `https://${response.hosts[0]}${response.path}`
-    : 'No download URL available';
+  if (!Array.isArray(response.hosts) || response.hosts.length === 0) {
+    throw new Error(
+      'getfilelink: pCloud returned result:0 but no download hosts. The file may not be downloadable for this account. Retry with stat to confirm the fileid.'
+    );
+  }
+  const downloadUrl = `https://${response.hosts[0]}${response.path}`;
   return {
     content: [{ type: "text", text: `Download URL: ${downloadUrl}` }],
     structuredContent: response,

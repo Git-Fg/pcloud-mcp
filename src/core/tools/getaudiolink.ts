@@ -39,9 +39,12 @@ export async function getaudiolinkHandler(
     'getaudiolink',
     params
   );
-  const streamUrl = response.hosts.length
-    ? `https://${response.hosts[0]}${response.path}`
-    : 'No stream URL available';
+  if (!Array.isArray(response.hosts) || response.hosts.length === 0) {
+    throw new Error(
+      'getaudiolink: pCloud returned result:0 but no stream hosts. The file may not be a supported audio format.'
+    );
+  }
+  const streamUrl = `https://${response.hosts[0]}${response.path}`;
   return {
     content: [{ type: "text", text: `Audio stream URL (MP3; append &start=<seconds> to seek): ${streamUrl}` }],
     structuredContent: response,

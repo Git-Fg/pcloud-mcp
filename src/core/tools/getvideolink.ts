@@ -15,7 +15,14 @@ export const GetvideolinkInputSchema = z
     vbitrate: z.number().int().min(16).max(4000).optional().describe('Initial video bitrate in kbit (16–4000, default 1000, adaptive unless fixedbitrate)'),
     resolution: z
       .string()
-      .regex(/^\d{2,4}x\d{2,4}$/)
+      .regex(/^\d{2,4}x\d{2,4}$/, 'Format must be WIDTHxHEIGHT, e.g. 640x480')
+      .refine(
+        (s) => {
+          const [w, h] = s.split('x').map(Number) as [number, number];
+          return w >= 64 && w <= 1280 && h >= 64 && h <= 960;
+        },
+        { message: 'width must be 64–1280 and height 64–960' }
+      )
       .optional()
       .describe('Transcode resolution WIDTHxHEIGHT (64x64 to 1280x960)'),
     fixedbitrate: z.boolean().optional().describe('If true, disable adaptive streaming (constant bitrate)'),
@@ -64,9 +71,12 @@ export async function getvideolinkHandler(
     'getvideolink',
     params
   );
-  const streamUrl = response.hosts.length
-    ? `https://${response.hosts[0]}${response.path}`
-    : 'No stream URL available';
+  if (!Array.isArray(response.hosts) || response.hosts.length === 0) {
+    throw new Error(
+      'getvideolink: pCloud returned result:0 but no stream hosts. The file may not be a supported video format.'
+    );
+  }
+  const streamUrl = `https://${response.hosts[0]}${response.path}`;
   return {
     content: [{ type: "text", text: `Video stream URL (append &start=<seconds> to seek): ${streamUrl}` }],
     structuredContent: response,

@@ -35,6 +35,11 @@ export async function checksumfileHandler(
     'checksumfile',
     params
   );
+  if (typeof response.sha1 !== 'string') {
+    throw new Error(
+      'checksumfile: pCloud returned result:0 but no sha1 checksum. This is a server-side anomaly — retry, and verify the fileid with stat.'
+    );
+  }
   return {
     content: [
       {

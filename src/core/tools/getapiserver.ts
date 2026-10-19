@@ -19,7 +19,10 @@ export async function getapiserverHandler(
   GetapiserverInputSchema.parse(_args);
   const client = new PcloudHttpClient();
   const response = await client.json<z.infer<typeof GetapiserverOutputSchema>>('getapiserver', {});
-  const closest = response.api[0] ?? 'unknown';
+  if (!Array.isArray(response.api) || response.api.length === 0) {
+    throw new Error('getapiserver: pCloud returned result:0 but an empty server list');
+  }
+  const closest = response.api[0];
   return {
     content: [
       {

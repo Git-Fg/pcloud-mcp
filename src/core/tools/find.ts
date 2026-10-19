@@ -43,33 +43,28 @@ export async function findHandler(
   const maxResults = args.maxResults ?? 100;
   const matches: FindOutput['matches'] = [];
   let scanned = 0;
-  let truncated = false;
+  let totalMatches = 0;
   type QueueItem = { folderid: number; depth: number };
   const queue: QueueItem[] = [{ folderid: args.folderid ?? 0, depth: 0 }];
   type ListfolderResponse = z.infer<typeof PcloudSuccess> & { metadata: z.infer<typeof PcloudMetadata> };
   while (queue.length > 0) {
-    if (matches.length >= maxResults) {
-      truncated = true;
-      break;
-    }
     const { folderid, depth } = queue.shift()!;
     const response = await client.json<ListfolderResponse>('listfolder', { folderid });
     const contents = response.metadata.contents ?? [];
     for (const item of contents) {
       scanned += 1;
       if (item.name && item.name.toLowerCase().includes(queryLc)) {
-        matches.push({
-          name: item.name,
-          path: item.path,
-          isfolder: item.isfolder,
-          fileid: item.fileid,
-          folderid: item.folderid,
-          size: item.size,
-          modified: item.modified,
-        });
-        if (matches.length >= maxResults) {
-          truncated = true;
-          break;
+        totalMatches += 1;
+        if (matches.length < maxResults) {
+          matches.push({
+            name: item.name,
+            path: item.path,
+            isfolder: item.isfolder,
+            fileid: item.fileid,
+            folderid: item.folderid,
+            size: item.size,
+            modified: item.modified,
+          });
         }
       }
       if (item.isfolder && item.folderid !== undefined && depth < maxDepth) {
@@ -77,6 +72,7 @@ export async function findHandler(
       }
     }
   }
+  const truncated = totalMatches > matches.length;
   const out: FindOutput = {
     result: 0,
     query: args.query,

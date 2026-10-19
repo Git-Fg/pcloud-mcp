@@ -64,7 +64,7 @@ export async function readfileHandler(
       if (done) break;
       if (value === undefined) continue;
       const remaining = cap - received;
-      if (value.length >= remaining) {
+      if (value.length > remaining) {
         chunks.push(value.subarray(0, remaining));
         received += remaining;
         truncated = true;
