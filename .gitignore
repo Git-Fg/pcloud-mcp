@@ -3,9 +3,7 @@ dist/
 .env
 *.log
 .DS_Store
-generated/
 .agents/
-/pcloud.ts
 references/
 
 # Machine-local MCP registrations (absolute paths, secrets-adjacent).
