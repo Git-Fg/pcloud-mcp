@@ -1,4 +1,5 @@
 node_modules/
+.mcp.json
 dist/
 .env
 *.log
@@ -11,6 +12,4 @@ references/
 .kimi-code/
 config/mcporter.json
 
-# Lockfiles we don't track (bun.lock is generated; package-lock.json is tracked for Docker).
-bun.lock
-bun.lockb
+# package-lock.json is tracked for Docker (npm ci); bun.lock is tracked for bun installs.

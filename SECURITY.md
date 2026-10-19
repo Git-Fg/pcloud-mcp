@@ -19,6 +19,10 @@ Please do **not** include live `PCLOUD_ACCESS_TOKEN` values, session tokens, or 
 - The HTTP transport refuses to bind a non-loopback address without `MCP_BEARER_TOKEN`.
 - The generated CLI (`pcloud.ts`) and `generated/` artifacts contain no secrets; they are safe to commit.
 
+## Unauthenticated endpoints
+
+The `/health` endpoint returns `{ status: "ok", service: "pcloud-mcp" }` without authentication. It is intentionally minimal (no account or filesystem data) so it can serve as a liveness probe. If you bind to a non-loopback address, be aware that `/health` is reachable without a bearer token; gate it behind a reverse proxy if that matters for your deployment.
+
 ## Response
 
 The maintainer will acknowledge reports within a reasonable time and coordinate a fix and disclosure. There is no bug bounty program.

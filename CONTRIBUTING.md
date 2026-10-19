@@ -44,3 +44,6 @@ bun run scripts/live-mcp-e2e.ts   # requires PCLOUD_ACCESS_TOKEN; creates and cl
 - Keep changes focused and atomic.
 - Update `README.md` and `AGENTS.md` when the tool surface or transport contract changes.
 - Update `docs/pcloud-notes.md` when a pCloud API quirk is confirmed or refuted.
+## Workspace-local skills (gitignored)
+
+The `.agents/skills/pcloud-{cli,client,types}/SKILL.md` files are gitignored and regenerated per-developer. After cloning, create them from the templates under `.agents/skills/` (or regenerate via the mcporter workflow above) so the tool counts stay in sync.

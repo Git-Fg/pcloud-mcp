@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "pcloud": {
+      "command": "sh",
+      "args": ["-c", "set -a && . /path/to/pcloud_mcp/.env && cd /path/to/pcloud_mcp && exec bun run src/index.ts"],
+      "cwd": "/path/to/pcloud_mcp"
+    }
+  }
+}
