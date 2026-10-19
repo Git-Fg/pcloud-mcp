@@ -3,7 +3,7 @@ import plugin from '@typescript-eslint/eslint-plugin';
 
 export default [
   {
-    files: ['src/**/*.ts'],
+    files: ['src/**/*.ts', 'scripts/**/*.ts'],
     languageOptions: {
       parser,
       parserOptions: { ecmaVersion: 2020, sourceType: 'module' },
@@ -17,6 +17,6 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'generated/**', 'references/**', 'scripts/**'],
+    ignores: ['dist/**', 'node_modules/**', 'generated/**', 'references/**'],
   },
 ];

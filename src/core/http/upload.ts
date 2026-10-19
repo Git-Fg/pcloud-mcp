@@ -15,6 +15,9 @@ export type ToolCtx = ServerContext | undefined;
  * Reads a local file in chunks, invoking `onChunk` with the running byte
  * count. Used by the upload tools to surface read progress; the bytes are
  * accumulated because Bun's `FormData`/`Blob` require the full buffer.
+ *
+ * The underlying stream is destroyed on every termination path (resolve,
+ * error, or caller abort) so the file descriptor is not leaked.
  */
 export function readFileChunked(
   filePath: string,
@@ -24,14 +27,23 @@ export function readFileChunked(
     const chunks: Buffer[] = [];
     let total = 0;
     const stream = createReadStream(filePath);
+    const cleanup = () => {
+      stream.destroy();
+    };
     stream.on('data', (chunk: Buffer | string) => {
       const buf = typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
       chunks.push(buf);
       total += buf.length;
       onChunk(total);
     });
-    stream.on('end', () => resolve(Buffer.concat(chunks, total)));
-    stream.on('error', reject);
+    stream.on('end', () => {
+      cleanup();
+      resolve(Buffer.concat(chunks, total));
+    });
+    stream.on('error', (err) => {
+      cleanup();
+      reject(err);
+    });
   });
 }
 

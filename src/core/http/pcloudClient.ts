@@ -1,7 +1,5 @@
 import { config } from '../config.js';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { readPkgFromHere } from '../pkg.js';
 
 /**
  * Actionable hints for known pCloud result codes.
@@ -12,23 +10,57 @@ import { dirname, join } from 'node:path';
  * is to stop the current call sequence and retry after a short backoff.
  */
 const RESULT_HINTS: Record<number, string> = {
-  1000: 'Authentication required / no session. Known pattern: pCloud rejects OAuth access_token on the trash family (trash_list/trash_restore) and requires a legacy /getauth session token (pCloud API limitation, unfixed since 2020). listrevisions/createuploadlink/revertrevision show the same 1000 but the cause for those three is not yet isolated (see references/pcloud-unresolved-notes.md). A file with no revision history also returns 1000 from listrevisions.',
+  1000: 'Authentication required / no session. Known pattern: pCloud rejects OAuth access_token on the trash family (trash_list/trash_restore) and requires a legacy /getauth session token (pCloud API limitation, unfixed since 2020). listrevisions/createuploadlink/revertrevision show the same 1000 but the cause for those three is not yet isolated (see references/pcloud-unresolved-notes.md). A file with no revision history may also return 1000 from listrevisions (unconfirmed).',
+  1001: 'Invalid login (username/password mismatch on /getauth).',
   1002: 'No full text file id match. The referenced file/folder may not exist at the given path.',
+  1003: 'No full text folder id match.',
   1004: 'deletefile needs fileid or path; use deletefolder for folders (must be empty) or deletefolderrecursive for non-empty folders.',
+  1005: 'Username is too short or invalid.',
+  1006: 'No files in the requested folder (with nofiles=1) or no folders when files were requested.',
+  1007: 'Upload link not found or expired.',
+  1008: 'Upload link is closed (the owner revoked it).',
+  1009: 'Invalid file/folder name (length, characters, or reserved name).',
+  1010: 'Operation not allowed on a shared item from this account.',
+  1011: 'The remote file/folder does not exist.',
+  1012: 'Not enough space on the remote destination (upload link or remote folder).',
+  1013: 'Authentication required (used by methods that need a logged-in user, distinct from 1000).',
+  1014: 'The folder is not empty (e.g. deletefolder was called on a non-empty folder).',
+  1015: 'Invalid path (format / encoding).',
   1016: 'copyfile/copyfolder missing destination. Provide --topath or --tofolderid (+ --toname) for the destination.',
   1017: 'Invalid folderid. Verify the folder exists with stat, or use resolve to get the current id.',
   1018: 'Invalid fileid. Verify the file exists with stat, or use resolve to get the current id.',
+  1019: 'The file is locked or in a transitional state (uploading, processing, etc.).',
+  1020: 'File too large for this account tier (max file size limit).',
+  1021: 'Cannot copy/move a folder into itself or a descendant.',
+  1022: 'Cannot perform the operation on the root folder.',
+  1023: 'Operation not allowed on a public link.',
+  1024: 'Invalid public link id.',
+  1025: 'Cannot modify a read-only share.',
   1035: 'createuploadlink missing required comment. Provide a non-empty comment describing the upload link.',
+  1036: 'Share with this user already exists or user has no space.',
+  1037: 'Cannot share with the owner of the folder.',
+  1040: 'Invalid revision id (listrevisions returned no such revision).',
+  2000: 'Generic pCloud internal error (e.g. unknown file id on a write).',
+  2001: 'A required parameter is missing.',
   2002: 'A parent directory in the path does not exist. Verify the path or create the parent folder first.',
+  2003: 'Local file I/O error (upload: cannot read the local file).',
   2004: 'Destination already exists (or noover conflict on copy). Choose a different name or drop noover.',
   2005: 'Directory does not exist. Create it with createfolder or verify the path with resolve.',
   2009: 'File not found. Verify the fileid with stat, or the path is correct.',
   2022: 'A folder with this name already exists in the parent. Use a different name or createfolderifnotexists.',
   2027: 'Invalid or already-deleted public link id. Check the linkid with listpublinks before deleting.',
   2041: 'Free space exceeded. The account quota is full; delete or move files before retrying.',
+  2042: 'File checksum mismatch (verify the upload completed cleanly and retry).',
+  2043: 'Upload was cancelled by the user.',
+  2044: 'Invalid upload offset / range (used by partial uploads).',
   2094: 'Invalid access token. The PCLOUD_ACCESS_TOKEN is malformed, revoked, or expired.',
   4000: 'Too many login tries from this IP. Stop the current call sequence, wait, then retry — the lockout is per-IP with no published duration.',
   5000: 'pCloud internal error. Retry with exponential backoff; the service is temporarily unavailable.',
+  5001: 'pCloud backend temporarily unavailable (maintenance). Retry with backoff.',
+  5002: 'pCloud backend overloaded. Retry with backoff.',
+  7004: 'Crypto / signature error. The server could not verify the request — regenerate the access token or check the time skew on the host.',
+  7007: 'Invalid OAuth client (the access token was issued to a different app).',
+  7008: 'OAuth client is not authorized for this endpoint.',
 };
 
 function hintFor(result: number): string {
@@ -84,16 +116,7 @@ export class PcloudHttpClient {
     this.baseUrl = baseUrl;
     this.timeoutMs = timeoutMs;
     this.maxRetries = maxRetries;
-
-    // Read package version once at construction time to avoid requireEnv crash
-    try {
-      const moduleDir = dirname(fileURLToPath(import.meta.url));
-      const pkgPath = join(moduleDir, '..', '..', '..', 'package.json');
-      const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
-      this.packageVersion = pkg.version ?? 'unknown';
-    } catch {
-      this.packageVersion = 'unknown';
-  }
+    this.packageVersion = readPkgFromHere().version ?? 'unknown';
   }
 
   /**
@@ -139,6 +162,9 @@ export class PcloudHttpClient {
           // Permanent 4xx (except 429) are NOT retried — pCloud's contract
           // is deterministic and retrying risks "4000 Too many login tries".
           if (response.status === 429 || response.status >= 500) {
+            // Drain the body so the connection can be released back to the
+            // pool; otherwise the next retry may stall on socket exhaustion.
+            await response.text().catch(() => {});
             if (attempt < this.maxRetries) {
               await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
               continue;
@@ -186,16 +212,24 @@ export class PcloudHttpClient {
   }
 
   /**
-   * Multipart upload (used by uploadfile). The text fields must come before
-   * the file fields; file field names are ignored by pCloud.
+   * Multipart upload (used by uploadfile and uploadtolink). The text fields
+   * must come before the file fields; file field names are ignored by pCloud.
+   *
+   * `auth` controls whether the access token is attached. uploadfile needs
+   * it (the request is on behalf of the authenticated user); uploadtolink
+   * MUST NOT carry it — pCloud authenticates the request by the link `code`
+   * field, and an attached account token would be a credential leak to
+   * a request that has no business with it.
    */
   async upload(
     endpoint: string,
     fields: Record<string, string | number>,
-    file: { blob: Blob; filename: string }
+    file: { blob: Blob; filename: string },
+    options: { auth?: boolean } = {}
   ): Promise<unknown> {
+    const useAuth = options.auth !== false;
     const url = new URL(`${this.baseUrl}/${endpoint}`);
-    if (config.accessToken) {
+    if (useAuth && config.accessToken) {
       url.searchParams.append('access_token', config.accessToken);
     }
     const form = new FormData();

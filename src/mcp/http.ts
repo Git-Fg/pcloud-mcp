@@ -73,6 +73,32 @@ export function createHttpApp(): express.Application {
     res.json({ status: 'ok', service: 'pcloud-mcp' });
   });
 
+  // CORS preflight: when the request Origin is on the allowlist, answer
+  // OPTIONS with the same CORS headers the GET/POST middleware would set,
+  // plus the methods/headers a browser needs to know are permitted.
+  app.options('/mcp', (req: Request, res: Response) => {
+    const origin = req.get('origin');
+    const allowedOrigin =
+      origin && ALLOWED_ORIGINS.includes(origin)
+        ? origin
+        : ALLOWED_ORIGINS.includes('null') && origin === 'null'
+          ? 'null'
+          : null;
+    if (allowedOrigin === null) {
+      res.status(403).json({
+        jsonrpc: '2.0',
+        error: { code: -32603, message: 'CORS origin not allowed' },
+        id: null,
+      });
+      return;
+    }
+    res.setHeader('Access-Control-Allow-Origin', allowedOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.status(204).end();
+  });
+
   // The HTTP transport holds the account's static token; require either a
   // loopback bind or an explicit bearer token before serving MCP traffic.
   if (!isLoopback(BIND_ADDRESS)) {

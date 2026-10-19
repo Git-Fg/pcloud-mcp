@@ -53,7 +53,7 @@ export async function uploadtolinkHandler(
   const response = (await client.upload('uploadtolink', fields, {
     blob: new Blob([new Uint8Array(buf)]),
     filename,
-  })) as z.infer<typeof UploadtolinkOutputSchema>;
+  }, { auth: false })) as z.infer<typeof UploadtolinkOutputSchema>;
   return {
     content: [
       {

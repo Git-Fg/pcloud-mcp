@@ -28,6 +28,14 @@ import { showuploadlinkHandler } from './showuploadlink.js';
 import { copyfileHandler } from './copyfile.js';
 import { copyfolderHandler } from './copyfolder.js';
 import { revertrevisionHandler } from './revertrevision.js';
+import { createfolderifnotexistsHandler } from './createfolderifnotexists.js';
+import { downloadfileHandler } from './downloadfile.js';
+import { checksumfileHandler } from './checksumfile.js';
+import { getthumblinkHandler } from './getthumblink.js';
+import { getvideolinkHandler } from './getvideolink.js';
+import { getaudiolinkHandler } from './getaudiolink.js';
+import { getapiserverHandler } from './getapiserver.js';
+import { currentserverHandler } from './currentserver.js';
 
 const READ_ONLY = { readOnlyHint: true, idempotentHint: true, openWorldHint: false } as const;
 const DESTRUCTIVE = { readOnlyHint: false, destructiveHint: true, openWorldHint: false } as const;
@@ -106,10 +114,13 @@ export function registerPcloudTools(server: McpServer): void {
   server.registerTool(
     'readfile',
     {
-      title: 'Read a Text File',
+      title: 'Read a File (UTF-8)',
       description:
-        'Read a text file from pCloud (getfilelink + HTTP fetch) and return its content. Capped to ' +
-        'maxBytes (default 1 MB) to keep the response inside the context window.',
+        'Read a file from pCloud (getfilelink + streamed HTTP fetch) and return its content as a ' +
+        'UTF-8 string. The response is capped to maxBytes (default 1 MB) and the upstream ' +
+        'download is cancelled at the cap. The signed download URL is never returned (short-lived ' +
+        'credential). Output is best-effort: binary files are decoded as UTF-8 with replacement ' +
+        'on invalid sequences, so use the result for text or treat `bytes` as the source of truth.',
       inputSchema: z
         .object({
           fileid: z.number().int().positive().optional(),
@@ -243,7 +254,9 @@ export function registerPcloudTools(server: McpServer): void {
       title: 'Delete a File',
       description:
         'Delete a single file by fileid or path. For empty folders use deletefolder; for non-empty ' +
-        'folders use deletefolderrecursive (which is unrecoverable through this server).',
+        'folders use deletefolderrecursive. The deleted file moves to the pCloud Trash and can ' +
+        'be recovered via trash_restore (note: trash_restore currently returns 1000 for OAuth ' +
+        'access tokens; see references/pcloud-unresolved-notes.md).',
       inputSchema: z
         .object({
           fileid: z.number().int().positive().optional(),
@@ -628,6 +641,197 @@ export function registerPcloudTools(server: McpServer): void {
       annotations: MUTATING,
     },
     revertrevisionHandler
+  );
+
+  server.registerTool(
+    'createfolderifnotexists',
+    {
+      title: 'Create a Folder (Idempotent)',
+      description:
+        'Idempotent version of createfolder: if a folder with the same name already exists under ' +
+        'the parent (or the path already resolves to a folder), its existing metadata is returned ' +
+        'instead of erroring with 2008. Use this when the caller does not know whether the folder ' +
+        'exists. `created` is true on a fresh folder, false when the existing one was returned.',
+      inputSchema: z
+        .object({
+          folderid: z.number().int().gte(0).optional().describe('Parent folder ID (0 for root)'),
+          name: z.string().min(1).describe('Folder name'),
+          path: z.string().optional().describe('Full path (discouraged; prefer folderid + name)'),
+        })
+        .refine((v) => (v.folderid !== undefined) !== (v.path !== undefined), {
+          message: 'Provide exactly one of folderid+name or path',
+        }),
+      outputSchema: z.object({}).passthrough(),
+      annotations: { ...MUTATING, idempotentHint: true },
+    },
+    createfolderifnotexistsHandler
+  );
+
+  server.registerTool(
+    'downloadfile',
+    {
+      title: 'Server-Side Download from URL',
+      description:
+        'Ask pCloud to fetch one or more URLs and store the resulting file(s) in a folder you own. ' +
+        'Pass a single `url` string or several URLs separated by whitespace. Optionally pass `target` ' +
+        'as a comma-separated urlencoded list of desired filenames (one per URL; empty positions ' +
+        'keep the URL-derived name). Bytes never cross the MCP server — pCloud does the fetching. ' +
+        'Blocks until all URLs are downloaded (use `progresshash` + `uploadprogress` to poll).',
+      inputSchema: z
+        .object({
+          url: z.string().min(1).describe('One or more URLs to download, separated by whitespace'),
+          folderid: z.number().int().nonnegative().optional().describe('Destination folder ID (default 0 = root)'),
+          path: z.string().optional().describe('Destination path (discouraged; prefer folderid)'),
+          target: z.string().optional().describe('Comma-separated urlencoded list of desired filenames, one per URL'),
+          progresshash: z.string().optional().describe('Hash used with uploadprogress to poll download progress'),
+        })
+        .refine(
+          (v) => v.folderid === undefined || v.path === undefined,
+          { message: 'Provide at most one of folderid or path' }
+        ),
+      outputSchema: z.object({ result: z.literal(0) }).passthrough(),
+      annotations: MUTATING,
+    },
+    downloadfileHandler
+  );
+
+  server.registerTool(
+    'checksumfile',
+    {
+      title: 'Get File Checksum(s)',
+      description:
+        'Return the cryptographic hash(es) for a file. SHA-1 is always returned. MD5 is added by ' +
+        'US API servers, SHA-256 by EU API servers — call once on each region to get the full set. ' +
+        'Use this to compare two files, or to verify an upload / download round-trip without ' +
+        're-reading the bytes.',
+      inputSchema: z
+        .object({
+          fileid: z.number().int().positive().optional().describe('File ID'),
+          path: z.string().optional().describe('Path to file (mutually exclusive with fileid)'),
+        })
+        .refine((v) => (v.fileid === undefined) !== (v.path === undefined), {
+          message: 'Provide exactly one of fileid or path',
+        }),
+      outputSchema: z.object({}).passthrough(),
+      annotations: READ_ONLY,
+    },
+    checksumfileHandler
+  );
+
+  server.registerTool(
+    'getthumblink',
+    {
+      title: 'Get Image Thumbnail Link',
+      description:
+        'Return a thumbnail download URL for an image file. size is required (WIDTHxHEIGHT; width ' +
+        '16–2048, height 16–1024, both divisible by 4 or 5 — pCloud returns error 1015 otherwise). ' +
+        'Set crop=true for exactly the requested size (edges may be cut), type=png for PNG output ' +
+        '(default jpeg). Works only on files whose metadata has thumb=true (error 1014 otherwise). ' +
+        'Thumbnails are created on first request and cached server-side; re-request after the file ' +
+        'hash changes.',
+      inputSchema: z
+        .object({
+          fileid: z.number().int().positive().optional().describe('File ID of the image'),
+          path: z.string().optional().describe('Path to the image (mutually exclusive with fileid)'),
+          size: z.string().describe('Thumbnail size, WIDTHxHEIGHT (see description for constraints)'),
+          crop: z.boolean().optional().describe('Crop to exactly the requested size'),
+          type: z.enum(['jpeg', 'png']).optional().describe('Output format (default jpeg)'),
+        })
+        .refine((v) => (v.fileid === undefined) !== (v.path === undefined), {
+          message: 'Provide exactly one of fileid or path',
+        }),
+      outputSchema: z.object({ result: z.literal(0) }).passthrough(),
+      annotations: READ_ONLY,
+    },
+    getthumblinkHandler
+  );
+
+  server.registerTool(
+    'getvideolink',
+    {
+      title: 'Get Video Streaming Link',
+      description:
+        'Return a transcoded streaming URL for a video file (FLV container, x264/mp3, adaptive ' +
+        'bitrate by default). Optional transcode controls: abitrate (16–320 kbit), vbitrate ' +
+        '(16–4000 kbit), resolution (64x64–1280x960), fixedbitrate (disable adaptive streaming). ' +
+        'The generated link accepts a start GET parameter to skip ahead N seconds. Returns error ' +
+        '2044 if the file is not a video.',
+      inputSchema: z
+        .object({
+          fileid: z.number().int().positive().optional().describe('File ID of the video'),
+          path: z.string().optional().describe('Path to the video (mutually exclusive with fileid)'),
+          forcedownload: z.boolean().optional().describe('Force Content-Disposition: attachment'),
+          contenttype: z.string().optional().describe('Override the response Content-Type'),
+          maxspeed: z.number().int().positive().optional().describe('Throttle the download speed (bytes/sec)'),
+          skipfilename: z.boolean().optional().describe('Omit the filename from Content-Disposition'),
+          abitrate: z.number().int().min(16).max(320).optional().describe('Audio bitrate kbit (16–320)'),
+          vbitrate: z.number().int().min(16).max(4000).optional().describe('Initial video bitrate kbit (16–4000)'),
+          resolution: z.string().optional().describe('Transcode resolution WIDTHxHEIGHT (64x64–1280x960)'),
+          fixedbitrate: z.boolean().optional().describe('Disable adaptive streaming'),
+        })
+        .refine((v) => (v.fileid === undefined) !== (v.path === undefined), {
+          message: 'Provide exactly one of fileid or path',
+        }),
+      outputSchema: z.object({ result: z.literal(0) }).passthrough(),
+      annotations: READ_ONLY,
+    },
+    getvideolinkHandler
+  );
+
+  server.registerTool(
+    'getaudiolink',
+    {
+      title: 'Get Audio Streaming Link',
+      description:
+        'Return an MP3 streaming URL for an audio (or video) file — also usable to extract the ' +
+        'audio track from a video, or to play FLAC etc. on MP3-only devices. abitrate controls the ' +
+        'transcode bitrate (16–320 kbit, default 192). The generated link accepts a start GET ' +
+        'parameter to skip ahead N seconds.',
+      inputSchema: z
+        .object({
+          fileid: z.number().int().positive().optional().describe('File ID of the audio (or video) file'),
+          path: z.string().optional().describe('Path to the file (mutually exclusive with fileid)'),
+          forcedownload: z.boolean().optional().describe('Force Content-Disposition: attachment'),
+          contenttype: z.string().optional().describe('Override the response Content-Type'),
+          abitrate: z.number().int().min(16).max(320).optional().describe('Audio bitrate kbit (16–320, default 192)'),
+        })
+        .refine((v) => (v.fileid === undefined) !== (v.path === undefined), {
+          message: 'Provide exactly one of fileid or path',
+        }),
+      outputSchema: z.object({ result: z.literal(0) }).passthrough(),
+      annotations: READ_ONLY,
+    },
+    getaudiolinkHandler
+  );
+
+  server.registerTool(
+    'getapiserver',
+    {
+      title: 'Get Closest API Server',
+      description:
+        'Return the API servers closest to the requesting client (no auth required). Biggest speed ' +
+        'gain is for upload methods. Clients should keep fallback logic: if a regional server ' +
+        'fails with a network error, fall back to api.pcloud.com.',
+      inputSchema: z.object({}),
+      outputSchema: z.object({ result: z.literal(0) }).passthrough(),
+      annotations: READ_ONLY,
+    },
+    getapiserverHandler
+  );
+
+  server.registerTool(
+    'currentserver',
+    {
+      title: 'Get Current API Server',
+      description:
+        'Return the ip and hostname of the server currently handling requests (no auth required). ' +
+        'The hostname resolves only to the same server. Useful to pin an upload target when polling ' +
+        'upload progress.',
+      inputSchema: z.object({}),
+      outputSchema: z.object({ result: z.literal(0) }).passthrough(),
+      annotations: READ_ONLY,
+    },
+    currentserverHandler
   );
 
   server.registerTool(

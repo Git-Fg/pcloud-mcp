@@ -10,6 +10,22 @@ export const ListfolderInputSchema = z.object({
     .optional()
     .default(0)
     .describe('Numeric folder ID to list (0 for root folder)'),
+  nofiles: z
+    .boolean()
+    .optional()
+    .describe('If true, list only subfolders, not files'),
+  noshares: z
+    .boolean()
+    .optional()
+    .describe('If true, exclude shared folders from the listing'),
+  recursive: z
+    .boolean()
+    .optional()
+    .describe('If true, list subfolders of the folder (pCloud performs the recursion)'),
+  showdeleted: z
+    .boolean()
+    .optional()
+    .describe('If true, include deleted (trashed) items in the listing'),
   limit: z
     .number()
     .int()
@@ -43,24 +59,39 @@ export const ListfolderOutputSchema = PcloudSuccess.extend({
     .optional(),
 });
 
+type PcloudContents = NonNullable<z.infer<typeof PcloudMetadata>['contents']>;
+
 export async function listfolderHandler(
-  args: { folderid: number; limit?: number; offset?: number },
+  args: {
+    folderid: number;
+    nofiles?: boolean;
+    noshares?: boolean;
+    recursive?: boolean;
+    showdeleted?: boolean;
+    limit?: number;
+    offset?: number;
+  },
   _ctx: unknown
 ): Promise<{
   content: { type: "text"; text: string }[];
   structuredContent: z.infer<typeof ListfolderOutputSchema>;
 }> {
   const client = new PcloudHttpClient();
+  const params: Record<string, string | number> = { folderid: args.folderid };
+  if (args.nofiles) params.nofiles = 1;
+  if (args.noshares) params.noshares = 1;
+  if (args.recursive) params.recursive = 1;
+  if (args.showdeleted) params.showdeleted = 1;
+
   const response = await client.json<{
     result: 0;
     metadata: z.infer<typeof PcloudMetadata>;
-  }>('listfolder', { folderid: args.folderid });
+  }>('listfolder', params);
 
-  const all = (response.metadata.contents ?? []) as unknown[];
+  const all: PcloudContents = response.metadata.contents ?? [];
   const limit = args.limit ?? 200;
   const offset = args.offset ?? 0;
   const sliced = all.slice(offset, offset + limit);
-  response.metadata.contents = sliced as never;
 
   const payload = {
     ...response,

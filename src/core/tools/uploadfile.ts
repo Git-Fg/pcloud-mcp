@@ -13,9 +13,15 @@ export const UploadfileInputSchema = z
     filename: z.string().optional().describe('Override filename in pCloud; defaults to the basename of filePath'),
     renameifexists: z.boolean().optional().describe('If true, append (2)/(3)… instead of overwriting'),
     nopartial: z.boolean().optional().describe('If true, discard the file on a connection drop instead of saving a partial'),
+    mtime: z.number().int().optional()
+      .describe('Set the file\'s modified time (unix seconds). pCloud applies it after upload.'),
+    ctime: z.number().int().optional()
+      .describe('Set the file\'s creation time (unix seconds).'),
+    progresshash: z.string().optional()
+      .describe('Hash used with uploadprogress to poll percent-complete (advanced).'),
   })
-  .refine((v) => v.folderid !== undefined || v.path !== undefined, {
-    message: 'Provide folderid or path',
+  .refine((v) => (v.folderid === undefined) !== (v.path === undefined), {
+    message: 'Provide exactly one of folderid or path',
   });
 
 export const UploadfileOutputSchema = PcloudSuccess.extend({
@@ -31,6 +37,9 @@ export async function uploadfileHandler(
     filename?: string;
     renameifexists?: boolean;
     nopartial?: boolean;
+    mtime?: number;
+    ctime?: number;
+    progresshash?: string;
   },
   ctx: ToolCtx
 ): Promise<{
@@ -47,6 +56,9 @@ export async function uploadfileHandler(
   fields.filename = filename;
   if (args.renameifexists) fields.renameifexists = 1;
   if (args.nopartial) fields.nopartial = 1;
+  if (args.mtime !== undefined) fields.mtime = args.mtime;
+  if (args.ctime !== undefined) fields.ctime = args.ctime;
+  if (args.progresshash !== undefined) fields.progresshash = args.progresshash;
 
   const notifyProgress = makeProgressNotifier(ctx, fileStat.size, filename);
   const buf = await readFileChunked(args.filePath, (bytes) => notifyProgress?.(bytes, 'read'));

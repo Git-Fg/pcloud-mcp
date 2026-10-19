@@ -19,6 +19,12 @@ export const ReadfileOutputSchema = z.object({}).passthrough();
  * upstream stream the moment the cap is reached instead of buffering the
  * whole file first. The signed URL is never returned to the caller — it is a
  * short-lived credential.
+ *
+ * Output bytes are decoded as UTF-8 (with replacement on invalid sequences)
+ * because pCloud's text-encoding signal is the filename, not the body. For
+ * binary files the decoded `content` will be lossy; if a caller needs raw
+ * bytes they should use `downloadfile` (separate tool, future) or fetch the
+ * URL out-of-band.
  */
 export async function readfileHandler(
   args: { fileid?: number; path?: string; maxBytes?: number },
@@ -36,17 +42,21 @@ export async function readfileHandler(
     hosts: string[];
     path: string;
   }>('getfilelink', linkParams));
+  if (!Array.isArray(link.hosts) || link.hosts.length === 0) {
+    throw new Error('readfile: getfilelink returned no hosts');
+  }
   const url = `https://${link.hosts[0]}${link.path}`;
 
   const cap = args.maxBytes ?? 1_000_000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), client.timeoutMs);
+  let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   try {
     const response = await fetch(url, { method: 'GET', signal: controller.signal });
     if (!response.ok || !response.body) {
       throw new Error(`readfile fetch failed: ${response.status} ${response.statusText}`);
     }
-    const reader = response.body.getReader();
+    reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let received = 0;
     let truncated = false;
@@ -77,6 +87,9 @@ export async function readfileHandler(
       content: [{ type: "text", text }],
       structuredContent: result as z.infer<typeof ReadfileOutputSchema>,
     };
+  } catch (err) {
+    if (reader) await reader.cancel().catch(() => {});
+    throw err;
   } finally {
     clearTimeout(timeoutId);
   }

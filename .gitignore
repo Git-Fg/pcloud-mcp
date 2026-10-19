@@ -8,3 +8,4 @@ references/*-mcp
 generated/
 .agents/
 /pcloud.ts
+durable-docs/
