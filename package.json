@@ -1,5 +1,5 @@
 {
-  "name": "pcloud_mcp",
+  "name": "pcloud-mcp",
   "version": "1.0.0",
   "description": "MCP server for pCloud: 37 typed tools over the pCloud HTTP/JSON API, stdio + HTTP transports, non-OAuth static access token.",
   "main": "dist/index.js",
@@ -25,7 +25,7 @@
     "pcloud",
     "model-context-protocol"
   ],
-  "author": "",
+  "author": "Git-Fg",
   "license": "MIT",
   "type": "module",
   "engines": {

@@ -1,4 +1,4 @@
-// Generated on 2026-10-19T19:16:07.962Z by pcloud_mcp@1.0.0
+// Generated on 2026-10-19T19:59:03.658Z by pcloud-mcp@1.0.0
 // Server: pcloud
 // Source: /Users/felix/Documents/pcloud_mcp/config/mcporter.json
 // Transport: STDIO sh -c set -a && . /Users/felix/Documents/pcloud_mcp/.env && cd /Users/felix/Documents/pcloud_mcp && exec bun run src/index.ts
