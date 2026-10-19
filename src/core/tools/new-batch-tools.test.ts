@@ -46,6 +46,15 @@ const CANNED: Record<string, unknown> = {
     ipbin: '204.155.155.60',
     ipv6: '::1',
   },
+  extractarchive: {
+    result: 0,
+    finished: false,
+    progresshash: 'KooPMKmcEBp',
+    lines: 10,
+    output: ['archive.zip: Zip', '  a.txt (10 B)... OK.'],
+    hostname: 'api5.pcloud.com',
+    ip: '204.155.151.23',
+  },
 };
 
 let originalFetch: typeof globalThis.fetch;
@@ -206,5 +215,38 @@ describe('batch-2 tools (mocked pCloud)', () => {
     expect(body.hostname).toBe('api7.pcloud.com');
     expect(r.content[0].text).toContain('api7.pcloud.com');
     expect([...new URL(requests[0].url).searchParams.keys()].sort()).toEqual(['access_token']);
+  });
+
+  it('extractarchive requires a destination', async () => {
+    const { ExtractarchiveInputSchema } = await import('./extractarchive.js');
+    expect(ExtractarchiveInputSchema.safeParse({ fileid: 1 }).success).toBe(false);
+    expect(ExtractarchiveInputSchema.safeParse({ fileid: 1, tofolderid: 0 }).success).toBe(true);
+    expect(ExtractarchiveInputSchema.safeParse({ path: '/a.zip', topath: '/out' }).success).toBe(true);
+  });
+
+  it('extractarchive requires exactly one of fileid or path', async () => {
+    const { ExtractarchiveInputSchema } = await import('./extractarchive.js');
+    expect(ExtractarchiveInputSchema.safeParse({ tofolderid: 0 }).success).toBe(false);
+    expect(
+      ExtractarchiveInputSchema.safeParse({ fileid: 1, path: '/a.zip', tofolderid: 0 }).success
+    ).toBe(false);
+  });
+
+  it('extractarchive forwards source, destination, password and overwrite', async () => {
+    const { extractarchiveHandler } = await import('./extractarchive.js');
+    const r = await extractarchiveHandler(
+      { fileid: 1, tofolderid: 0, password: 's3cret', overwrite: 'skip' },
+      undefined
+    );
+    const body = r.structuredContent as { finished: boolean; progresshash?: string; hostname?: string };
+    expect(body.finished).toBe(false);
+    expect(body.progresshash).toBe('KooPMKmcEBp');
+    expect(r.content[0].text).toContain('poll extractarchiveprogress');
+    expect(r.content[0].text).toContain('api5.pcloud.com');
+    const sent = new URL(requests[0].url).searchParams;
+    expect(sent.get('fileid')).toBe('1');
+    expect(sent.get('tofolderid')).toBe('0');
+    expect(sent.get('password')).toBe('s3cret');
+    expect(sent.get('overwrite')).toBe('skip');
   });
 });

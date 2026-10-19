@@ -62,6 +62,7 @@ PAGES = [
     ("methods/general/diff.html", "method_diff.md"),
     ("methods/thumbnails/getthumblink.html", "method_getthumblink.md"),
     ("methods/archiving/getziplink.html", "method_getziplink.md"),
+    ("methods/archiving/extractarchive.html", "method_extractarchive.md"),
     ("methods/sharing/sharefolder.html", "method_sharefolder.md"),
     ("methods/sharing/listshares.html", "method_listshares.md"),
     ("methods/oauth_2.0/index.html", "methods_oauth_index.md"),

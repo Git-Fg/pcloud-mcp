@@ -18,7 +18,10 @@ export const DiffInputSchema = z
   .refine(
     (v) => [v.diffid !== undefined, v.after !== undefined, v.last !== undefined].filter(Boolean).length <= 1,
     { message: 'Provide at most one of diffid, after, last' }
-  );
+  )
+  .refine((v) => v.block === undefined || (v.diffid !== undefined && v.after === undefined && v.last === undefined), {
+    message: 'block only works with diffid, and not together with after or last',
+  });
 
 export const DiffOutputSchema = PcloudSuccess.extend({
   diffid: z.union([z.string(), z.number()]).optional(),

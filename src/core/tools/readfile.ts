@@ -22,9 +22,8 @@ export const ReadfileOutputSchema = z.object({}).passthrough();
  *
  * Output bytes are decoded as UTF-8 (with replacement on invalid sequences)
  * because pCloud's text-encoding signal is the filename, not the body. For
- * binary files the decoded `content` will be lossy; if a caller needs raw
- * bytes they should use `downloadfile` (separate tool, future) or fetch the
- * URL out-of-band.
+ * binary files the decoded `content` will be lossy; there is no raw-byte MCP
+ * tool, so callers needing exact bytes must fetch the URL out-of-band.
  */
 export async function readfileHandler(
   args: { fileid?: number; path?: string; maxBytes?: number },

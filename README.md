@@ -1,6 +1,6 @@
 # pCloud MCP server
 
-Local MCP server that exposes the pCloud HTTP/JSON API as 36 typed tools to any MCP client (Claude Code, Kimi Code, Cursor, etc.).
+Local MCP server that exposes the pCloud HTTP/JSON API as 37 typed tools to any MCP client (Claude Code, Kimi Code, Cursor, etc.).
 
 ## Quick start
 

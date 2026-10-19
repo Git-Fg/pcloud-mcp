@@ -12,7 +12,7 @@ export const DownloadfileInputSchema = z
     target: z.string().optional()
       .describe('Comma-separated urlencoded list of desired filenames, one per URL. Empty positions keep the URL-derived name.'),
     progresshash: z.string().optional()
-      .describe('Hash used with uploadprogress to poll download progress'),
+      .describe('Optional client-side progress token (not polled by the MCP server; returned to the caller for its own tracking).'),
   })
   .refine((v) => v.folderid === undefined || v.path === undefined, {
     message: 'Provide at most one of folderid or path (or neither for root)',

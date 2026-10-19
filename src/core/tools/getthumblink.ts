@@ -11,7 +11,7 @@ export const GetthumblinkInputSchema = z
       .regex(/^\d{2,4}x\d{2,4}$/)
       .describe('Thumbnail size, WIDTHxHEIGHT (width 16–2048, height 16–1024; both divisible by 4 or 5)'),
     crop: z.boolean().optional().describe('If true, crop to exactly the requested size (may cut edges)'),
-    type: z.enum(['jpeg', 'png']).optional().describe('Output format (default jpeg)'),
+    type: z.literal('png').optional().describe('Only "png" is documented (default format is jpeg)'),
   })
   .refine((v) => (v.fileid === undefined) !== (v.path === undefined), {
     message: 'Provide exactly one of fileid or path',
@@ -24,7 +24,7 @@ export const GetthumblinkOutputSchema = PcloudSuccess.extend({
 });
 
 export async function getthumblinkHandler(
-  args: { fileid?: number; path?: string; size: string; crop?: boolean; type?: 'jpeg' | 'png' },
+  args: { fileid?: number; path?: string; size: string; crop?: boolean; type?: 'png' },
   _ctx: unknown
 ): Promise<{
   content: { type: "text"; text: string }[];

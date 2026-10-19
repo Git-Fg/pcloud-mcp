@@ -16,12 +16,15 @@ export const UploadfileInputSchema = z
     mtime: z.number().int().optional()
       .describe('Set the file\'s modified time (unix seconds). pCloud applies it after upload.'),
     ctime: z.number().int().optional()
-      .describe('Set the file\'s creation time (unix seconds).'),
+      .describe('Set the file\'s creation time (unix seconds). mtime is required when ctime is set.'),
     progresshash: z.string().optional()
-      .describe('Hash used with uploadprogress to poll percent-complete (advanced).'),
+      .describe('Hash returned to the client for resumable-upload polling (used by pCloud\'s binary protocol, not by this MCP server).'),
   })
-  .refine((v) => (v.folderid === undefined) !== (v.path === undefined), {
-    message: 'Provide exactly one of folderid or path',
+  .refine((v) => v.folderid === undefined || v.path === undefined, {
+    message: 'Provide at most one of folderid or path (omit both to upload to the root folder)',
+  })
+  .refine((v) => v.ctime === undefined || v.mtime !== undefined, {
+    message: 'ctime requires mtime to be set (pCloud rejects ctime without mtime)',
   });
 
 export const UploadfileOutputSchema = PcloudSuccess.extend({
@@ -52,7 +55,7 @@ export async function uploadfileHandler(
   const filename = args.filename ?? basename(args.filePath);
   const fields: Record<string, string | number> = {};
   if (args.path !== undefined) fields.path = args.path;
-  else fields.folderid = args.folderid!;
+  else fields.folderid = args.folderid ?? 0;
   fields.filename = filename;
   if (args.renameifexists) fields.renameifexists = 1;
   if (args.nopartial) fields.nopartial = 1;
