@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI workflow running typecheck, build, tests, and lint.
 - `bun.lock` tracked in version control for reproducible installs.
 - `config/mcporter.json.example` as a template for mcporter configuration.
-- `/health` endpoint documentation and an environment-variable table in the README.
+- Environment-variable table in the README.
 
 ### Changed
 

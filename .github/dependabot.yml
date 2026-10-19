@@ -6,10 +6,14 @@ updates:
       interval: "weekly"
     open-pull-requests-limit: 5
     groups:
-      modelcontextprotocol-sdk:
+      modelcontextprotocol:
         patterns:
-          - "@modelcontextprotocol/sdk"
           - "@modelcontextprotocol/*"
       zod:
         patterns:
           - "zod"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
