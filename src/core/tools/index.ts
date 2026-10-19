@@ -189,7 +189,7 @@ export function registerPcloudTools(server: McpServer): void {
         'Delete a single file by fileid or path. For empty folders use deletefolder; for non-empty ' +
         'folders use deletefolderrecursive. The deleted file moves to the pCloud Trash and can ' +
         'be recovered via trash_restore (note: trash_restore currently returns 1000 for OAuth ' +
-        'access tokens; see references/pcloud-unresolved-notes.md).',
+        'access tokens; see docs/pcloud-notes.md).',
       inputSchema: DeletefileInputSchema,
       outputSchema: z.object({ result: z.literal(0) }).passthrough(),
       annotations: DESTRUCTIVE,

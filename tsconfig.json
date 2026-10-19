@@ -6,21 +6,25 @@
     "outDir": "dist",
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "lib": ["es2022"],
+    "lib": [
+      "es2022"
+    ],
     "strict": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "skipLibCheck": true,
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/**/*"],
+  "include": [
+    "src/**/*"
+  ],
   "exclude": [
-    "references/**",
     "node_modules",
     "dist",
-    "vitest.config.ts",
     "**/*.test.ts"
   ]
 }

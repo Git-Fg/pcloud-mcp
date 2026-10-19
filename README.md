@@ -1,6 +1,8 @@
 # pCloud MCP server
 
-Local MCP server that exposes the pCloud HTTP/JSON API as 37 typed tools to any MCP client (Claude Code, Kimi Code, Cursor, etc.).
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
+Local MCP server that exposes the pCloud HTTP/JSON API as **37 typed tools** to any MCP client (Claude Code, Kimi Code, Cursor, VS Code, …). Built with `@modelcontextprotocol/sdk` v2, TypeScript, and Bun; ships stdio (default) and streamable-HTTP transports.
 
 ## Quick start
 
@@ -10,30 +12,80 @@ cp .env.example .env          # then fill in PCLOUD_ACCESS_TOKEN
 bun run build                 # tsc → dist/
 bun run dev                   # stdio transport
 bun run dev:http              # http transport on http://127.0.0.1:3000
-bun test                      # unit + transport tests (73)
+bun test                      # unit + transport tests (84)
 bun run scripts/live-mcp-e2e.ts  # exercises the real pCloud API (needs the token)
 ```
 
-## Documentation
+## Configure your MCP client
 
-- `AGENTS.md` — workspace-level rules, tool surface, pCloud quirks, regenerating mcporter artifacts.
-- `references/pcloud-docs/` — full pCloud developer docs as markdown, one file per page.
-- `references/pcloud-unresolved-notes.md` — known gaps in the surface (5 tools return `1000` for this account; root cause confirmed for the trash family only).
-- `.agents/skills/pcloud-{cli,client,types}/SKILL.md` — workspace-local skills for the regenerated CLI and types.
+```json
+{
+  "mcpServers": {
+    "pcloud": {
+      "command": "sh",
+      "args": ["-c", "set -a && . ./.env && exec bun run src/index.ts"],
+      "cwd": "/path/to/pcloud_mcp"
+    }
+  }
+}
+```
+
+Or, after `bun run build`, point at the compiled entry: `node /path/to/pcloud_mcp/dist/index.js` with `PCLOUD_ACCESS_TOKEN` in the environment.
+
+## Environment
+
+| Variable | Required | Notes |
+| --- | --- | --- |
+| `PCLOUD_ACCESS_TOKEN` | yes | Static token, sent as `?access_token=` per the pCloud HTTP/JSON protocol. |
+| `PCLOUD_ACCESS_ID` | no | Application/access id from the rclone token store — not a credential for this protocol. |
+| `PCLOUD_API_SERVER` | no | Defaults to `eapi.pcloud.com` (EU region). |
+| `MCP_BEARER_TOKEN` | no | Required to bind the HTTP transport to a non-loopback address. |
 
 ## Transport
 
 | Mode | How | When |
 | --- | --- | --- |
 | stdio (default) | `bun run dev` | Local Claude/Kimi/Cursor against this repo |
-| HTTP | `MODE=http bun run dev` or `MODE=http node dist/index.js` | Sharing on the network — server refuses to bind a non-loopback address without `MCP_BEARER_TOKEN` |
+| HTTP | `MODE=http bun run dev` | Sharing on the network — refuses to bind a non-loopback address without `MCP_BEARER_TOKEN` |
 
-The HTTP transport defaults to `127.0.0.1:3000` and enforces a DNS-rebinding host allowlist plus a CORS deny-by-default policy. See `src/mcp/http.ts` and its test file `src/mcp/http.test.ts` for the exact contract.
+The HTTP transport defaults to `127.0.0.1:3000` and enforces a DNS-rebinding host allowlist plus a CORS deny-by-default policy. See `src/mcp/http.ts` and `src/mcp/http.test.ts`.
 
 ## Authentication
 
-Non-OAuth. A static `PCLOUD_ACCESS_TOKEN` is read from env (per `.env.example`) and sent as the `?access_token=` query parameter per the pCloud HTTP/JSON protocol. `PCLOUD_ACCESS_ID` is the application/access id from the rclone token store — not a credential for this protocol. `PCLOUD_API_SERVER` defaults to `eapi.pcloud.com` (EU region).
+Non-OAuth. A static `PCLOUD_ACCESS_TOKEN` is read from env and sent as the `?access_token=` query parameter per the pCloud HTTP/JSON protocol. All requests hit `https://eapi.pcloud.com/<method>`; every response carries `result` — `0` success, non-zero error surfaced as MCP `isError`. Known endpoint limitations are documented in `docs/pcloud-notes.md`.
+
+## Tool surface (37)
+
+The authoritative list, with titles, descriptions, and Zod input/output schemas, is `src/core/tools/index.ts`. Highlights:
+
+- Files: `stat`, `resolve`, `readfile`, `checksumfile`, `getfilelink`, `getthumblink`, `getvideolink`, `getaudiolink`, `renamefile`, `copyfile`, `deletefile`, `listrevisions`, `revertrevision`, `downloadfile`.
+- Folders: `listfolder`, `find`, `createfolder`, `createfolderifnotexists`, `renamefolder`, `copyfolder`, `deletefolder`, `deletefolderrecursive`.
+- Uploads: `uploadfile`, `createuploadlink`, `showuploadlink`, `uploadtolink`.
+- Sharing: `getfilepublink`, `getfolderpublink`, `listpublinks`, `deletepublink`.
+- Trash: `trash_list`, `trash_restore`.
+- Misc: `userinfo`, `diff`, `extractarchive`, `getapiserver`, `currentserver`.
+
+## Development
+
+```sh
+bun run typecheck   # tsc --noEmit
+bun run build       # tsc → dist/
+bun run test        # bun test
+bun run lint        # eslint src/**/*.ts
+bun run clean       # remove dist/
+```
+
+After any change to `src/core/tools/*` or `src/mcp/*`, run `bun run typecheck && bun run build && bun test && bun run lint`.
+
+Regenerate the mcporter artifacts (CLI, types, client) with the commands in `AGENTS.md`. Generated files are gitignored and regenerated per-developer.
+
+## Docker
+
+```sh
+docker build -t pcloud-mcp .
+docker run --rm -i -e PCLOUD_ACCESS_TOKEN=... pcloud-mcp
+```
 
 ## License
 
-MIT.
+MIT — see `LICENSE`.

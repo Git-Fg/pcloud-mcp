@@ -42,8 +42,8 @@ export const ListfolderInputSchema = z.object({
 });
 
 /**
- * pCloud places the listing INSIDE `metadata.contents` (per
- * references/pcloud-docs/method_listfolder.md and the live response).
+ * pCloud places the listing INSIDE `metadata.contents` (per the live
+ * API response and docs/pcloud-notes.md).
  * `limit`/`offset` are applied client-side because pCloud's API does not
  * paginate — on a large folder the response is one giant array.
  */

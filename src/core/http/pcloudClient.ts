@@ -10,7 +10,7 @@ import { readPkgFromHere } from '../pkg.js';
  * is to stop the current call sequence and retry after a short backoff.
  */
 const RESULT_HINTS: Record<number, string> = {
-  1000: 'Log in required. Known pattern: pCloud rejects OAuth access_token on the trash family (trash_list/trash_restore) and requires a legacy /getauth session token (pCloud API limitation, unfixed since 2020). listrevisions/createuploadlink/revertrevision show the same 1000 but the cause for those three is not yet isolated (see references/pcloud-unresolved-notes.md).',
+  1000: 'Log in required. Known pattern: pCloud rejects OAuth access_token on the trash family (trash_list/trash_restore) and requires a legacy /getauth session token (pCloud API limitation, unfixed since 2020). listrevisions/createuploadlink/revertrevision show the same 1000 but the cause for those three is not yet isolated (see docs/pcloud-notes.md).',
   1001: 'No full path or name/folderid provided (createfolder/createfolderifnotexists).',
   1002: 'No full path or folderid provided.',
   1004: 'No fileid or path provided.',

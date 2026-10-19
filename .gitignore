@@ -3,9 +3,16 @@ dist/
 .env
 *.log
 .DS_Store
-references/*/node_modules
-references/*-mcp
 generated/
 .agents/
 /pcloud.ts
-durable-docs/
+references/
+
+# Machine-local MCP registrations (absolute paths, secrets-adjacent).
+.mcp.json.local
+.kimi-code/
+config/mcporter.json
+
+# Lockfiles we don't track (bun.lock is generated; package-lock.json is tracked for Docker).
+bun.lock
+bun.lockb

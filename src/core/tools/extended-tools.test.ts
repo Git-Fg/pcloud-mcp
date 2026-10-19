@@ -3,8 +3,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'bun:test';
 process.env.PCLOUD_ACCESS_TOKEN = 'unit-test-token';
 
 // Live-shaped pCloud fixtures. isfolder is a real boolean, timestamps are
-// RFC-822, and listfolder nests contents inside metadata (per the live API
-// and references/pcloud-docs/method_listfolder.md).
+// RFC-822, and listfolder nests contents inside metadata (per the live API).
 
 const CANNED: Record<string, unknown> = {
   stat: {
