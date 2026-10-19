@@ -1,4 +1,3 @@
 [test]
-# Scoping the test runner to src/ avoids walking the vendored MCP reference
-# repos under references/ (which are not part of this project).
+# Scoping the test runner to src/ keeps test discovery limited to project source.
 root = "src"

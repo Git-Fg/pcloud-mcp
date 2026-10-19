@@ -3,6 +3,19 @@
 
 Extracts the div.dev-content from each docs.pcloud.com page and pipes it
 through pandoc. Writes one .md per page into the directory given as argv[1].
+
+Usage:
+    python3 scripts/fetch_pcloud_docs.py <out-dir>
+
+Conventional output directory: docs/pcloud-api/ (not tracked; create on demand).
+
+This is an on-demand tool — the output directory is caller-supplied so
+developers can place the generated docs wherever they need them. The
+directory does not need to exist in the repo beforehand; the script
+creates it.
+
+No tracked file references this script; it is maintained for local
+regeneration of current pCloud API reference when needed.
 """
 import re
 import subprocess
