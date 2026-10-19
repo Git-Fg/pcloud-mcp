@@ -22,7 +22,7 @@ export function createHttpApp(): express.Application {
   
   // Host header allowlist (DNS rebinding defense)
   const ALLOWED_HOSTS = process.env.ALLOWED_HOSTS
-    ? process.env.ALLOWED_HOSTS.split(',').map(h => h.trim())
+    ? process.env.ALLOWED_HOSTS.split(',').map(h => h.trim()).filter(Boolean)
     : [
         `localhost:${PORT}`,
         `127.0.0.1:${PORT}`,
@@ -47,18 +47,13 @@ export function createHttpApp(): express.Application {
 
   // CORS: deny by default, explicit opt-in
   const ALLOWED_ORIGINS = process.env.ALLOWED_ORIGINS
-    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
+    ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim()).filter(Boolean)
     : [];
 
   app.use((req: Request, res: Response, next: NextFunction) => {
     const origin = req.get('origin');
     if (origin && ALLOWED_ORIGINS.includes(origin)) {
       res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      next();
-      return;
-    } else if (ALLOWED_ORIGINS.includes('null') && origin === 'null') {
-      res.setHeader('Access-Control-Allow-Origin', 'null');
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       next();
       return;

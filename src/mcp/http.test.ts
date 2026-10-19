@@ -43,8 +43,9 @@ async function start(): Promise<number> {
   process.env.PORT = String(port);
   const { createHttpApp } = await import('./http.js');
   const app = createHttpApp();
-  const server = await new Promise<http.Server>((resolve) => {
+  const server = await new Promise<http.Server>((resolve, reject) => {
     const s = app.listen(port, '127.0.0.1', () => resolve(s));
+    s.on('error', reject);
   });
   servers.push(server);
   return port;
@@ -100,6 +101,32 @@ describe('http transport security', () => {
     expect(rejected.status).toBe(421);
   });
 
+  it('trims whitespace in ALLOWED_HOSTS entries', async () => {
+    process.env.ALLOWED_HOSTS = '  custom.example.com  ,  other.example.com ';
+    const port = await start();
+    const allowed = await request(port, '/health', { host: 'custom.example.com' });
+    const alsoAllowed = await request(port, '/health', { host: 'other.example.com' });
+    expect(allowed.status).toBe(200);
+    expect(alsoAllowed.status).toBe(200);
+  });
+
+  it('filters empty ALLOWED_HOSTS segments so a hostless request cannot bypass the gate', async () => {
+    process.env.ALLOWED_HOSTS = ',';
+    const port = await start();
+    const hostless = await request(port, '/health', {});
+    const emptyHost = await request(port, '/health', { host: '' });
+    const validHost = await request(port, '/health', { host: `127.0.0.1:${port}` });
+    expect(hostless.status).toBe(421);
+    expect(emptyHost.status).toBe(421);
+    expect(validHost.status).toBe(421);
+  });
+
+  it('rejects an uppercase Host (host comparison is exact; failing closed is intended)', async () => {
+    const port = await start();
+    const res = await request(port, '/health', { host: `LOCALHOST:${port}` });
+    expect(res.status).toBe(421);
+  });
+
   it('rejects a disallowed CORS origin with 403', async () => {
     const port = await start();
     const res = await request(port, '/health', {
@@ -128,6 +155,21 @@ describe('http transport security', () => {
     const res = await request(port, '/health', { host: `127.0.0.1:${port}`, origin: 'null' });
     expect(res.status).toBe(200);
     expect(res.headers['access-control-allow-origin']).toBe('null');
+  });
+
+  it('filters empty ALLOWED_ORIGINS segments', async () => {
+    process.env.ALLOWED_ORIGINS = ',https://ok.example.com,';
+    const port = await start();
+    const allowed = await request(port, '/health', {
+      host: `127.0.0.1:${port}`,
+      origin: 'https://ok.example.com',
+    });
+    const emptyOrigin = await request(port, '/health', {
+      host: `127.0.0.1:${port}`,
+      origin: '',
+    });
+    expect(allowed.status).toBe(200);
+    expect(emptyOrigin.status).toBe(200);
   });
 
   it('rejects a null Origin by default', async () => {
@@ -161,6 +203,12 @@ describe('http transport security', () => {
       host: `127.0.0.1:${port}`,
       authorization: 'Bearer secret-token',
     });
+    expect(res.status).not.toBe(401);
+  });
+
+  it('passes /mcp through to the SDK when the bearer gate is off (loopback, no token)', async () => {
+    const port = await start();
+    const res = await request(port, '/mcp', { host: `127.0.0.1:${port}` });
     expect(res.status).not.toBe(401);
   });
 
