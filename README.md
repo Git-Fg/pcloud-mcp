@@ -86,6 +86,8 @@ Regenerate the mcporter artifacts (CLI, types, client) with the commands in `AGE
 
 > **Note:** Regenerating the mcporter artifacts rewrites the machine-local absolute paths embedded in the generated file headers, so a regeneration on a fresh clone will show a diff.
 
+> **Known limitation (mcporter 0.7.3):** The generated TypeScript client (`generated/pcloud-client.ts`) does not typecheck under strict TypeScript and its no-argument tools (`userinfo`, `listpublinks`, `getapiserver`, `currentserver`) fail at runtime through `mcporter`'s `ServerProxy`. The CLI (`generated/pcloud-cli.js`) and the MCP server itself are unaffected and are the supported interfaces. Track the upstream fix in mcporter; regenerate after upgrading `mcporter` in `package.json`.
+
 ## Docker
 
 ```sh
