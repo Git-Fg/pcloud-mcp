@@ -3,7 +3,7 @@
   "configVersion": 0,
   "workspaces": {
     "": {
-      "name": "pcloud_mcp",
+      "name": "pcloud-mcp",
       "dependencies": {
         "@modelcontextprotocol/client": "^2.3.1",
         "@modelcontextprotocol/node": "^2.1.1",
