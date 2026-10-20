@@ -5,6 +5,7 @@
 ```sh
 bun install
 cp .env.example .env   # fill in PCLOUD_ACCESS_TOKEN
+git config core.hooksPath .githooks   # enable the tracked pre-commit hook
 bun run build          # tsc → dist/
 bun run dev            # stdio transport
 bun run dev:http       # http transport on http://127.0.0.1:3000
@@ -22,23 +23,16 @@ All four must pass with zero errors.
 
 ## Regenerating artifacts
 
-After any change to `src/core/tools/*` or `src/mcp/*`, regenerate the mcporter artifacts:
+After any change to `src/core/tools/*` or `src/mcp/*`, regenerate the mcporter artifacts. The tracked runtime config is `config/mcporter.json` (relative paths, no host-specific values); codegen needs the object form, which is passed inline:
 
 ```sh
-bunx mcporter generate-cli --server pcloud
+PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server '{"name":"pcloud","command":{"kind":"stdio","command":"sh","args":["-c","if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"],"cwd":"."},"description":"MCP server for pCloud"}' --output pcloud.ts
 bun build pcloud.ts --target=bun --outfile=generated/pcloud-cli.js --minify
-bunx mcporter emit-ts pcloud --mode types --out generated/pcloud-types.d.ts
-bunx mcporter emit-ts pcloud --mode client --out generated/pcloud-client.ts
+PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode types --out generated/pcloud-types.d.ts
+PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts
 ```
 
-Before the first regeneration, copy the mcporter config template and edit the absolute paths to match your clone:
-
-```sh
-cp config/mcporter.json.example config/mcporter.json
-# then edit config/mcporter.json to point at this repo's absolute path
-```
-
-A local pre-commit hook (`.git/hooks/pre-commit`) regenerates `pcloud.ts` automatically when `src/` is newer. Set `REGEN_ALL=1` to also rebuild the `generated/` artifacts. The workspace-local skills at `.agents/skills/pcloud-{cli,client,types}/SKILL.md` are gitignored and regenerated per-developer; they are not present on a fresh clone.
+A tracked pre-commit hook (`.githooks/pre-commit`, activated by `git config core.hooksPath .githooks`) regenerates `pcloud.ts` automatically; set `REGEN_ALL=1` to also rebuild the `generated/` artifacts. The workspace-local skills at `.agents/skills/pcloud-{cli,client,types}/SKILL.md` are gitignored and regenerated per-developer; they are not present on a fresh clone.
 
 ## Live verification
 

@@ -11,8 +11,8 @@ references/
 .mcp.json.local
 .kimi-code/
 
-# mcporter codegen-only artifact (object form, consumed by generate-cli).
-# config/mcporter.json is the tracked runtime config (array form, relative paths).
+# mcporter codegen-only config (object form, consumed by generate-cli).
+# config/mcporter.json is the tracked runtime config (string + args form, relative paths).
 config/mcporter.gen.json
 
 # mcporter emit-ts outputs are per-developer (regenerated; see AGENTS.md recipe).

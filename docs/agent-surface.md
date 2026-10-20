@@ -30,7 +30,7 @@ A typed MCP server exposing the pCloud HTTP/JSON API methods as tools for any MC
 
 1. **Run the 4-command gate before any commit** — `bun run typecheck && bun run build && bun test && bun run lint` (all tests, 0 errors expected).
 2. **Import `ToolMeta` from handlers** — each handler exports `{ title, description, annotations, inputSchema }`; `registerPcloudTools` loops and registers. Eliminates param drift permanently. See `src/core/tools/listfolder.ts` for the pattern.
-3. **Full artifact regen requires `REGEN_ALL=1`** — pre-commit hook regenerates `pcloud.ts` only; set `REGEN_ALL=1` to also rebuild `generated/pcloud-cli.js`, `generated/pcloud-types.d.ts`, `generated/pcloud-client.ts`.
+3. **Full artifact regen requires `REGEN_ALL=1`** — the pre-commit hook regenerates `pcloud.ts` and `generated/pcloud-cli.js` by default; set `REGEN_ALL=1` to also rebuild `generated/pcloud-types.d.ts` and `generated/pcloud-client.ts`.
 4. **Verify end-to-end with live token** — `bun run scripts/live-mcp-e2e.ts` (requires `PCLOUD_ACCESS_TOKEN`; creates temp folder + file, exercises upload/getfilelink/deletefile/deletefolderrecursive, cleans up).
 5. **Use `bun install` locally; Docker uses `npm ci`** — lockfiles (`bun.lock`, `package-lock.json`) are both tracked for reproducibility.
 
@@ -60,16 +60,17 @@ A typed MCP server exposing the pCloud HTTP/JSON API methods as tools for any MC
    ```ts
    // src/core/tools/index.ts
    import { newtoolHandler, NewtoolToolMeta } from './newtool.js';
-   server.registerTool('newtool', NewtoolToolMeta, newtoolHandler);
+   // add to the tools array, then the existing loop registers it:
+   { name: 'newtool', meta: NewtoolToolMeta, handler: newtoolHandler, outputSchema: OUTPUT_SCHEMA },
    ```
    Verification: gate passes; `grep -c server.registerTool src/core/tools/index.ts` increments.
 
 3. **Full artifact regen**
    ```sh
-   REGEN_ALL=1 PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server pcloud
+   PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server '{"name":"pcloud","command":{"kind":"stdio","command":"sh","args":["-c","if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"],"cwd":"."},"description":"MCP server for pCloud"}' --output pcloud.ts
    bun build pcloud.ts --target=bun --outfile=generated/pcloud-cli.js --minify
-   npx mcporter emit-ts pcloud --mode types --out generated/pcloud-types.d.ts
-   npx mcporter emit-ts pcloud --mode client --out generated/pcloud-client.ts
+   PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode types --out generated/pcloud-types.d.ts
+   PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts
    ```
    Verification: `bun run pcloud.ts --help` lists all tools; `generated/pcloud-cli.js` ≈ 1.28 MB (mcporter 0.15.0 output).
 
