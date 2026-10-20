@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const DeletefileInputSchema = z
   .object({
@@ -11,6 +12,17 @@ export const DeletefileInputSchema = z
   });
 
 export const DeletefileOutputSchema = z.object({}).passthrough();
+
+export const DeletefileToolMeta: ToolMeta<typeof DeletefileInputSchema> = {
+  title: 'Delete a File',
+  description:
+    'Delete a single file by fileid or path. For empty folders use deletefolder; for non-empty ' +
+    'folders use deletefolderrecursive. The deleted file moves to the pCloud Trash and can ' +
+    'be recovered via trash_restore (note: trash_restore currently returns 1000 for OAuth ' +
+    'access tokens; see docs/pcloud-notes.md).',
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  inputSchema: DeletefileInputSchema,
+};
 
 export async function deletefileHandler(
   args: { fileid?: number; path?: string },

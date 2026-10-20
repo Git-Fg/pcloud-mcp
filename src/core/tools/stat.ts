@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const StatInputSchema = z
   .object({
@@ -12,6 +13,13 @@ export const StatInputSchema = z
   });
 
 export const StatOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const StatToolMeta: ToolMeta<typeof StatInputSchema> = {
+  title: 'Get File or Folder Metadata',
+  description: 'Return the metadata for one file or folder by fileid or path. Cheap existence check.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: StatInputSchema,
+};
 
 export async function statHandler(
   args: { fileid?: number; path?: string },

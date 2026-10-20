@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const RenamefolderInputSchema = z
   .object({
@@ -18,6 +19,13 @@ export const RenamefolderInputSchema = z
   });
 
 export const RenamefolderOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const RenamefolderToolMeta: ToolMeta<typeof RenamefolderInputSchema> = {
+  title: 'Rename / Move Folder',
+  description: 'Rename or move a folder in a single atomic call. Provide topath, or tofolderid+toname.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: RenamefolderInputSchema,
+};
 
 export async function renamefolderHandler(
   args: {

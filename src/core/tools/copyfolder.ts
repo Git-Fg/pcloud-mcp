@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const CopyfolderInputSchema = z
   .object({
@@ -22,6 +23,17 @@ export const CopyfolderInputSchema = z
   );
 
 export const CopyfolderOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const CopyfolderToolMeta: ToolMeta<typeof CopyfolderInputSchema> = {
+  title: 'Copy a Folder',
+  description:
+    'Server-side copy of a folder. Source by folderid or path; destination by topath, or ' +
+    'tofolderid (+ optional toname). set copycontentonly=true to copy the contents of the ' +
+    'source into the destination rather than nesting a new folder under it. skipexisting ' +
+    'and noover control conflict behaviour.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: CopyfolderInputSchema,
+};
 
 export async function copyfolderHandler(
   args: {

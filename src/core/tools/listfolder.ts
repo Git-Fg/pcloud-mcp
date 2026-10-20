@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const ListfolderInputSchema = z.object({
   folderid: z
@@ -60,6 +61,15 @@ export const ListfolderOutputSchema = PcloudSuccess.extend({
 });
 
 type PcloudContents = NonNullable<z.infer<typeof PcloudMetadata>['contents']>;
+
+export const ListfolderToolMeta: ToolMeta<typeof ListfolderInputSchema> = {
+  title: 'List pCloud Folder',
+  description:
+    'List the contents of a pCloud folder by folderid. pCloud does not paginate natively; ' +
+    'use limit/offset to slice client-side and avoid blowing the context window on large folders.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: ListfolderInputSchema,
+};
 
 export async function listfolderHandler(
   args: {

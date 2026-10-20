@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-Local MCP server that exposes the pCloud HTTP/JSON API as **37 typed tools** to any MCP client (Claude Code, Kimi Code, Cursor, VS Code, …). Built with `@modelcontextprotocol/sdk` v2, TypeScript, and Bun; ships stdio (default) and streamable-HTTP transports.
+Local MCP server that exposes the pCloud HTTP/JSON API as typed tools to any MCP client (Claude Code, Kimi Code, Cursor, VS Code, …). Built with `@modelcontextprotocol/sdk` v2, TypeScript, and Bun; ships stdio (default) and streamable-HTTP transports.
 
 ## Quick start
 
@@ -12,7 +12,7 @@ cp .env.example .env          # then fill in PCLOUD_ACCESS_TOKEN
 bun run build                 # tsc → dist/
 bun run dev                   # stdio transport
 bun run dev:http              # http transport on http://127.0.0.1:3000
-bun test                      # unit + transport tests (84)
+bun test                      # unit + transport tests
 bun run scripts/live-mcp-e2e.ts  # exercises the real pCloud API (needs the token)
 ```
 
@@ -59,9 +59,9 @@ The HTTP transport defaults to `127.0.0.1:3000` and enforces a DNS-rebinding hos
 
 Non-OAuth. A static `PCLOUD_ACCESS_TOKEN` is read from env and sent as the `?access_token=` query parameter per the pCloud HTTP/JSON protocol. All requests hit `https://<PCLOUD_API_SERVER>/<method>` (default `https://eapi.pcloud.com/<method>`; override via `PCLOUD_API_SERVER`, see `src/core/config.ts`); every response carries `result` — `0` success, non-zero error surfaced as MCP `isError`. Known endpoint limitations are documented in `docs/pcloud-notes.md`.
 
-## Tool surface (37)
+## Tool surface
 
-The authoritative list, with titles, descriptions, and Zod input/output schemas, is `src/core/tools/index.ts`. Highlights:
+The authoritative list, with titles, descriptions, and Zod input/output schemas, is `src/core/tools/index.ts`. The count is `grep -c 'server.registerTool' src/core/tools/index.ts` (do not hardcode it). Highlights:
 
 - Files: `stat`, `resolve`, `readfile`, `checksumfile`, `getfilelink`, `getthumblink`, `getvideolink`, `getaudiolink`, `renamefile`, `copyfile`, `deletefile`, `listrevisions`, `revertrevision`, `downloadfile`.
 - Folders: `listfolder`, `find`, `createfolder`, `createfolderifnotexists`, `renamefolder`, `copyfolder`, `deletefolder`, `deletefolderrecursive`.
@@ -86,7 +86,7 @@ Regenerate the mcporter artifacts (CLI, types, client) with the commands in `AGE
 
 > **Note:** Regenerating the mcporter artifacts rewrites the machine-local absolute paths embedded in the generated file headers, so a regeneration on a fresh clone will show a diff.
 
-> **Note:** With mcporter 0.15.0, the generated TypeScript client now typeschecks correctly under strict TypeScript and all tools including zero-argument tools work properly. The known limitations of mcporter 0.7.3 have been resolved.
+> **Note:** With mcporter 0.15.0, the generated TypeScript client now typechecks correctly under strict TypeScript and all tools including zero-argument tools work properly. The known limitations of mcporter 0.7.3 have been resolved.
 
 ## Docker
 
@@ -96,6 +96,10 @@ docker run --rm -i -e PCLOUD_ACCESS_TOKEN=... pcloud-mcp
 ```
 
 > The Dockerfile uses `npm` (`npm ci`) for reproducibility; local development uses `bun`.
+
+## Agent-facing rules
+
+See [`AGENTS.md`](./AGENTS.md) for agent rules and [`docs/agent-surface.md`](./docs/agent-surface.md) for the launchpad-shaped agent surface (gotchas, best practices, examples).
 
 ## Changelog
 

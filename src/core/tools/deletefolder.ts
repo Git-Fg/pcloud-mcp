@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const DeletefolderInputSchema = z
   .object({
@@ -11,6 +12,15 @@ export const DeletefolderInputSchema = z
   });
 
 export const DeletefolderOutputSchema = z.object({}).passthrough();
+
+export const DeletefolderToolMeta: ToolMeta<typeof DeletefolderInputSchema> = {
+  title: 'Delete an Empty Folder',
+  description:
+    'Delete a folder that is already empty, by folderid or path. For non-empty folders use ' +
+    'deletefolderrecursive. pCloud requires the folder to be empty for this endpoint to succeed.',
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  inputSchema: DeletefolderInputSchema,
+};
 
 export async function deletefolderHandler(
   args: { folderid?: number; path?: string },

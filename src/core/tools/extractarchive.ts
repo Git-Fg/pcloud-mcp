@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const ExtractarchiveInputSchema = z
   .object({
@@ -31,6 +32,19 @@ export const ExtractarchiveOutputSchema = PcloudSuccess.extend({
   hostname: z.string().optional().describe('Server running the extraction (polling must target this host)'),
   ip: z.string().optional().describe('IPv4 of the extraction server'),
 });
+
+export const ExtractarchiveToolMeta: ToolMeta<typeof ExtractarchiveInputSchema> = {
+  title: 'Extract an Archive',
+  description:
+    'Ask pCloud to extract an archive (zip/tar/etc.) already in your filesystem into a destination ' +
+    'folder. Runs for ~2s; if the extraction finishes in that window, `finished=true` in the ' +
+    'response, otherwise `finished=false` and `progresshash` is returned — poll it on the ' +
+    '`hostname` returned in the same response. On a password-protected archive, pCloud returns ' +
+    'error 7009: retry with the `password` parameter. `overwrite` (default "rename") controls ' +
+    'behaviour on name conflicts.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: ExtractarchiveInputSchema,
+};
 
 export async function extractarchiveHandler(
   args: {

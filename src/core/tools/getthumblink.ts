@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const GetthumblinkInputSchema = z
   .object({
@@ -32,6 +33,19 @@ export const GetthumblinkOutputSchema = PcloudSuccess.extend({
   path: z.string(),
   size: z.string().describe('The real produced size; may differ from the requested one unless crop was set'),
 });
+
+export const GetthumblinkToolMeta: ToolMeta<typeof GetthumblinkInputSchema> = {
+  title: 'Get Image Thumbnail Link',
+  description:
+    'Return a thumbnail download URL for an image file. size is required (WIDTHxHEIGHT; width ' +
+    '16–2048, height 16–1024, both divisible by 4 or 5 — pCloud returns error 1015 otherwise). ' +
+    'Set crop=true for exactly the requested size (edges may be cut), type=png for PNG output ' +
+    '(default jpeg). Works only on files whose metadata has thumb=true (error 1014 otherwise). ' +
+    'Thumbnails are created on first request and cached server-side; re-request after the file ' +
+    'hash changes.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: GetthumblinkInputSchema,
+};
 
 export async function getthumblinkHandler(
   args: { fileid?: number; path?: string; size: string; crop?: boolean; type?: 'png' },

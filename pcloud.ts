@@ -7,15 +7,15 @@ import { createGeneratedKeepAliveRuntime, createRuntime, createServerProxy, hand
 import { createCallResult } from 'mcporter';
 
 const __mcpScriptDir = path.dirname(fileURLToPath(import.meta.url));
-const __mcpRelativeStdioCwd: string | null = null;
+const __mcpRelativeStdioCwd: string | null = ".";
 const embeddedServer = {
   "command": {
     "args": [
       "-c",
-      "set -a && . /Users/felix/Documents/pcloud_mcp/.env && cd /Users/felix/Documents/pcloud_mcp && exec bun run src/index.ts"
+      "if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"
     ],
     "command": "sh",
-    "cwd": "/Users/felix/Documents/pcloud_mcp",
+    "cwd": ".",
     "kind": "stdio"
   },
   "description": "MCP server for pCloud: 37 typed tools over the pCloud HTTP/JSON API, stdio + HTTP transports, non-OAuth static access token.",
@@ -263,7 +263,7 @@ const embeddedMetadata = {
     "bundler": "bun",
     "minify": false,
     "runtime": "bun",
-    "serverRef": "{\"command\":{\"args\":[\"-c\",\"set -a && . /Users/felix/Documents/pcloud_mcp/.env && cd /Users/felix/Documents/pcloud_mcp && exec bun run src/index.ts\"],\"command\":\"sh\",\"cwd\":\"/Users/felix/Documents/pcloud_mcp\",\"kind\":\"stdio\"},\"description\":\"MCP server for pCloud: 37 typed tools over the pCloud HTTP/JSON API, stdio + HTTP transports, non-OAuth static access token.\",\"name\":\"pcloud\"}",
+    "serverRef": "{\"command\":{\"args\":[\"-c\",\"if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts\"],\"command\":\"sh\",\"cwd\":\".\",\"kind\":\"stdio\"},\"description\":\"MCP server for pCloud: 37 typed tools over the pCloud HTTP/JSON API, stdio + HTTP transports, non-OAuth static access token.\",\"name\":\"pcloud\"}",
     "timeoutMs": 30000
   },
   "schemaVersion": 1,
@@ -272,10 +272,10 @@ const embeddedMetadata = {
       "command": {
         "args": [
           "-c",
-          "set -a && . /Users/felix/Documents/pcloud_mcp/.env && cd /Users/felix/Documents/pcloud_mcp && exec bun run src/index.ts"
+          "if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"
         ],
         "command": "sh",
-        "cwd": "/Users/felix/Documents/pcloud_mcp",
+        "cwd": ".",
         "kind": "stdio"
       },
       "description": "MCP server for pCloud: 37 typed tools over the pCloud HTTP/JSON API, stdio + HTTP transports, non-OAuth static access token.",

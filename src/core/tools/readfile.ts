@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const ReadfileInputSchema = z
   .object({
@@ -25,6 +26,18 @@ export const ReadfileOutputSchema = z.object({}).passthrough();
  * binary files the decoded `content` will be lossy; there is no raw-byte MCP
  * tool, so callers needing exact bytes must fetch the URL out-of-band.
  */
+export const ReadfileToolMeta: ToolMeta<typeof ReadfileInputSchema> = {
+  title: 'Read a File (UTF-8)',
+  description:
+    'Read a file from pCloud (getfilelink + streamed HTTP fetch) and return its content as a ' +
+    'UTF-8 string. The response is capped to maxBytes (default 1 MB) and the upstream ' +
+    'download is cancelled at the cap. The signed download URL is never returned (short-lived ' +
+    'credential). Output is best-effort: binary files are decoded as UTF-8 with replacement ' +
+    'on invalid sequences, so use the result for text or treat `bytes` as the source of truth.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: ReadfileInputSchema,
+};
+
 export async function readfileHandler(
   args: { fileid?: number; path?: string; maxBytes?: number },
   _ctx: unknown

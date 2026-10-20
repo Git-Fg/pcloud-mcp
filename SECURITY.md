@@ -19,6 +19,13 @@ Please do **not** include live `PCLOUD_ACCESS_TOKEN` values, session tokens, or 
 - The HTTP transport refuses to bind a non-loopback address without `MCP_BEARER_TOKEN`.
 - The generated CLI (`pcloud.ts`) and `generated/` artifacts contain no secrets; they are safe to commit.
 
+## pCloud-specific security gotchas
+
+- **Token provenance split** — pCloud silently rejects OAuth `access_token=` tokens on the trash family (`trash_list`, `trash_restore`); only legacy `/getauth` session tokens (`auth=`) work there. `listrevisions`, `createuploadlink`, and `revertrevision` show the same `1000` symptom with an unconfirmed cause (see `docs/pcloud-notes.md`, which owns the live-verified state). No OAuth scope parameter exists to widen access. Source: [pCloud API docs](https://docs.pcloud.com/methods/trash_list/) + rclone #3853.
+- **Referrer restriction** — URLs returned by `getfilepublink`, `getfilelink`, `getvideolink`, and `getaudiolink` are restricted to `pcloud.com` referrer; embedding them in third-party pages will fail. Source: [pCloud getfilepublink](https://docs.pcloud.com/methods/getfilepublink/).
+- **Upload link codes are credentials** — `uploadtolink` authenticates by the link code only; anyone with the code can upload files to the destination folder. Treat codes as secrets.
+- **Signed download URLs** — `getfilelink` deliberately returns the short-lived, token-scoped download URL to the client; treat any transcript or log it lands in as sensitive for the URL's lifetime. `readfile` is the alternative that streams content without surfacing the signed URL.
+
 ## Unauthenticated endpoints
 
 The `/health` endpoint returns `{ status: "ok", service: "pcloud-mcp" }` without authentication. It is intentionally minimal (no account or filesystem data) so it can serve as a liveness probe. If you bind to a non-loopback address, be aware that `/health` is reachable without a bearer token; gate it behind a reverse proxy if that matters for your deployment.

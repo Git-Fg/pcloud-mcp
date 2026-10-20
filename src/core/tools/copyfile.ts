@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const CopyfileInputSchema = z
   .object({
@@ -25,6 +26,17 @@ export const CopyfileInputSchema = z
   );
 
 export const CopyfileOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const CopyfileToolMeta: ToolMeta<typeof CopyfileInputSchema> = {
+  title: 'Copy a File',
+  description:
+    'Server-side copy of a file. Source by fileid or path; destination by topath, or ' +
+    'tofolderid (+ optional toname). If toname is omitted, the source filename is used. ' +
+    'The copy is a new, independent file. Optionally set noover=true to fail on conflicts ' +
+    'instead of overwriting, and mtime/ctime to pin timestamps (unix seconds).',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: CopyfileInputSchema,
+};
 
 export async function copyfileHandler(
   args: {

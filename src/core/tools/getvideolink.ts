@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const GetvideolinkInputSchema = z
   .object({
@@ -35,6 +36,19 @@ export const GetvideolinkOutputSchema = PcloudSuccess.extend({
   hosts: z.array(z.string()),
   path: z.string(),
 });
+
+export const GetvideolinkToolMeta: ToolMeta<typeof GetvideolinkInputSchema> = {
+  title: 'Get Video Streaming Link',
+  description:
+    'Return a transcoded streaming URL for a video file (FLV container, x264/mp3, adaptive ' +
+    'bitrate by default). Optional transcode controls: abitrate (16–320 kbit), vbitrate ' +
+    '(16–4000 kbit), resolution (64x64–1280x960), fixedbitrate (disable adaptive streaming). ' +
+    'The generated link accepts a start GET parameter to skip ahead N seconds. Returns error ' +
+    "2044 if the file is not a video. This method can't be used from web applications. " +
+    'Referrer is restricted to pcloud.com.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: GetvideolinkInputSchema,
+};
 
 export async function getvideolinkHandler(
   args: {

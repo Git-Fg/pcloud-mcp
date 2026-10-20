@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const DeletefolderrecursiveInputSchema = z
   .object({
@@ -15,6 +16,16 @@ export const DeletefolderrecursiveOutputSchema = PcloudSuccess.extend({
   deletedfiles: z.number().int().nonnegative(),
   deletedfolders: z.number().int().nonnegative(),
 });
+
+export const DeletefolderrecursiveToolMeta: ToolMeta<typeof DeletefolderrecursiveInputSchema> = {
+  title: 'Delete Folder and All Contents',
+  description:
+    'Recursively delete a folder and every file and subfolder inside it. DESTRUCTIVE: removed ' +
+    'items go to the trash and can be recovered with trash_restore; this is a one-way ' +
+    '`deletefolderrecursive` call that cannot be undone from this server.',
+  annotations: { readOnlyHint: false, destructiveHint: true, openWorldHint: false },
+  inputSchema: DeletefolderrecursiveInputSchema,
+};
 
 export async function deletefolderrecursiveHandler(
   args: { folderid?: number; path?: string },

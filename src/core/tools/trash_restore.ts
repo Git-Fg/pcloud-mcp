@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const TrashRestoreInputSchema = z
   .object({
@@ -17,6 +18,15 @@ export const TrashRestoreInputSchema = z
   });
 
 export const TrashRestoreOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const TrashRestoreToolMeta: ToolMeta<typeof TrashRestoreInputSchema> = {
+  title: 'Restore an Item from Trash',
+  description:
+    'Restore a file or folder from the trash by fileid or folderid. Optionally target a ' +
+    'destination folder via restoreto. Set folderid=0 to restore the entire trash.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: TrashRestoreInputSchema,
+};
 
 export async function trashRestoreHandler(
   args: { fileid?: number; folderid?: number; restoreto?: number; metadata?: boolean },

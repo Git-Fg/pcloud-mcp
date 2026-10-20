@@ -10,6 +10,14 @@ references/
 # Machine-local MCP registrations (absolute paths, secrets-adjacent).
 .mcp.json.local
 .kimi-code/
-config/mcporter.json
+
+# mcporter codegen-only artifact (object form, consumed by generate-cli).
+# config/mcporter.json is the tracked runtime config (array form, relative paths).
+config/mcporter.gen.json
+
+# mcporter emit-ts outputs are per-developer (regenerated; see AGENTS.md recipe).
+generated/pcloud-client.ts
+generated/pcloud-client.d.ts
+generated/pcloud-types.d.ts
 
 # package-lock.json is tracked for Docker (npm ci); bun.lock is tracked for bun installs.

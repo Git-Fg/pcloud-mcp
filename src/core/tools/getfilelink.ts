@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const GetfilelinkInputSchema = z
   .object({
@@ -23,6 +24,15 @@ export const GetfilelinkOutputSchema = PcloudSuccess.extend({
   hosts: z.array(z.string()),
   path: z.string(),
 });
+
+export const GetfilelinkToolMeta: ToolMeta<typeof GetfilelinkInputSchema> = {
+  title: 'Get pCloud File Download Link',
+  description:
+    'Return a download URL for a file by fileid or path. URL is short-lived and token-scoped. ' +
+    "This method can't be used from web applications. Referrer is restricted to pcloud.com.",
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: GetfilelinkInputSchema,
+};
 
 export async function getfilelinkHandler(
   args: {

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const CreatefolderInputSchema = z.object({
   folderid: z
@@ -16,6 +17,13 @@ export const CreatefolderInputSchema = z.object({
 export const CreatefolderOutputSchema = PcloudSuccess.extend({
   metadata: PcloudMetadata,
 });
+
+export const CreatefolderToolMeta: ToolMeta<typeof CreatefolderInputSchema> = {
+  title: 'Create pCloud Folder',
+  description: 'Create a new folder under a parent folder (id 0 = root). Errors if the name already exists.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: CreatefolderInputSchema,
+};
 
 export async function createfolderHandler(
   args: { folderid: number; name: string },

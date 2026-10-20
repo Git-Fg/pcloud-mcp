@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const TrashListInputSchema = z.object({
   folderid: z.number().int().nonnegative().optional().default(0),
@@ -9,6 +10,16 @@ export const TrashListInputSchema = z.object({
 });
 
 export const TrashListOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const TrashListToolMeta: ToolMeta<typeof TrashListInputSchema> = {
+  title: 'List Items in Trash',
+  description:
+    'List the contents of the pCloud Trash (root folderid=0 unless nested). Items in trash ' +
+    'have origparentfolderid showing the folder they were deleted from. Use trash_restore to ' +
+    'recover an item by its fileid/folderid.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: TrashListInputSchema,
+};
 
 export async function trashListHandler(
   args: { folderid?: number; nofiles?: boolean; recursive?: boolean },

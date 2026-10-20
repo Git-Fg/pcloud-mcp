@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const GetfolderpublinkInputSchema = z
   .object({
@@ -23,6 +24,16 @@ export const GetfolderpublinkOutputSchema = PcloudSuccess.extend({
   shortlink: z.string().optional(),
   shortcode: z.string().optional(),
 });
+
+export const GetfolderpublinkToolMeta: ToolMeta<typeof GetfolderpublinkInputSchema> = {
+  title: 'Create Public Link to a Folder',
+  description:
+    'Create a public share link to a folder. Same optional constraints as getfilepublink; ' +
+    'maxdownloads here limits total downloads from the folder, not per-file. Root folder ' +
+    '(folderid=0) cannot be shared.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: GetfolderpublinkInputSchema,
+};
 
 export async function getfolderpublinkHandler(
   args: {

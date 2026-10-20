@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const ShowuploadlinkInputSchema = z.object({
   uploadlinkid: z.number().int().positive().describe('Upload link id returned by createuploadlink'),
@@ -20,6 +21,16 @@ export const ShowuploadlinkOutputSchema = PcloudSuccess.extend({
   maxspace: z.number().int().nonnegative().optional(),
   maxfiles: z.number().int().nonnegative().optional(),
 });
+
+export const ShowuploadlinkToolMeta: ToolMeta<typeof ShowuploadlinkInputSchema> = {
+  title: 'Show / Modify an Upload Link',
+  description:
+    'Inspect an upload link (returns code, link, mail, comment, expires, maxspace, maxfiles) and ' +
+    'optionally modify its expire / maxspace / maxfiles in the same call. Pass deleteexpire=true to ' +
+    'clear the existing expiry; pass 0 for maxspace or maxfiles to remove those caps.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: ShowuploadlinkInputSchema,
+};
 
 export async function showuploadlinkHandler(
   args: {

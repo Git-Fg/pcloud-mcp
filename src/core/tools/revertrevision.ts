@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const RevertrevisionInputSchema = z
   .object({
@@ -13,6 +14,15 @@ export const RevertrevisionInputSchema = z
   });
 
 export const RevertrevisionOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const RevertrevisionToolMeta: ToolMeta<typeof RevertrevisionInputSchema> = {
+  title: 'Revert a File to a Previous Revision',
+  description:
+    'Revert a file by fileid or path to a previous revision (from listrevisions). The current ' +
+    'contents are saved as a new revision so nothing is lost. Returns the updated metadata.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: RevertrevisionInputSchema,
+};
 
 export async function revertrevisionHandler(
   args: { fileid?: number; path?: string; revisionid: number },

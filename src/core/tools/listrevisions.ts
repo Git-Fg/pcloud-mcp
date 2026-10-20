@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const ListrevisionsInputSchema = z
   .object({
@@ -22,6 +23,13 @@ export const ListrevisionsOutputSchema = PcloudSuccess.extend({
     }).passthrough()
   ),
 });
+
+export const ListrevisionsToolMeta: ToolMeta<typeof ListrevisionsInputSchema> = {
+  title: 'List File Revisions',
+  description: 'Return the version history of a file by fileid or path (newest first).',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: ListrevisionsInputSchema,
+};
 
 export async function listrevisionsHandler(
   args: { fileid?: number; path?: string },

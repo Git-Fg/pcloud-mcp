@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const DownloadfileInputSchema = z
   .object({
@@ -28,6 +29,18 @@ export const DownloadfileOutputSchema = PcloudSuccess.extend({
  * cross the MCP server, pCloud does the fetching. Blocks until all URLs are
  * downloaded, so large downloads will hold the tool call open.
  */
+export const DownloadfileToolMeta: ToolMeta<typeof DownloadfileInputSchema> = {
+  title: 'Server-Side Download from URL',
+  description:
+    'Ask pCloud to fetch one or more URLs and store the resulting file(s) in a folder you own. ' +
+    'Pass a single `url` string or several URLs separated by whitespace. Optionally pass `target` ' +
+    'as a comma-separated urlencoded list of desired filenames (one per URL; empty positions ' +
+    'keep the URL-derived name). Bytes never cross the MCP server — pCloud does the fetching. ' +
+    'Blocks until all URLs are downloaded (large downloads hold the tool call open).',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+  inputSchema: DownloadfileInputSchema,
+};
+
 export async function downloadfileHandler(
   args: { url: string; folderid?: number; path?: string; target?: string; progresshash?: string },
   _ctx: unknown

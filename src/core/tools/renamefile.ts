@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const RenamefileInputSchema = z
   .object({
@@ -18,6 +19,15 @@ export const RenamefileInputSchema = z
   });
 
 export const RenamefileOutputSchema = PcloudSuccess.extend({ metadata: PcloudMetadata });
+
+export const RenamefileToolMeta: ToolMeta<typeof RenamefileInputSchema> = {
+  title: 'Rename / Move File',
+  description:
+    'Rename or move a file in a single atomic call. Provide topath, or tofolderid+toname. If the ' +
+    'destination already exists, it is replaced and the old fileid is returned in `metadata.deletedfileid`.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: RenamefileInputSchema,
+};
 
 export async function renamefileHandler(
   args: {

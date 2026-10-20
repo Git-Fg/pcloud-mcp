@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const CreateuploadlinkInputSchema = z
   .object({
@@ -21,6 +22,16 @@ export const CreateuploadlinkOutputSchema = PcloudSuccess.extend({
   mail: z.string().optional(),
   code: z.string().optional(),
 });
+
+export const CreateuploadlinkToolMeta: ToolMeta<typeof CreateuploadlinkInputSchema> = {
+  title: 'Create an Upload Link',
+  description:
+    'Create an upload link that lets anyone with the link upload files into a folder you own. ' +
+    'comment is required and is the only context uploaders see. Optional expire / maxspace / maxfiles. ' +
+    'Returns the uploadlinkid, the public link URL, a mail-upload address, and the upload code.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: CreateuploadlinkInputSchema,
+};
 
 export async function createuploadlinkHandler(
   args: {

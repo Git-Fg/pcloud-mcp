@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 /**
  * Resolve a pCloud path to its numeric id. Wraps `stat` so agents never have
@@ -26,6 +27,16 @@ export const ResolveOutputSchema = PcloudSuccess.extend({
 type StatEnvelopeInfer = z.infer<typeof PcloudSuccess> & { metadata: z.infer<typeof PcloudMetadata> };
 
 export type ResolveOutput = z.infer<typeof ResolveOutputSchema>;
+
+export const ResolveToolMeta: ToolMeta<typeof ResolveInputSchema> = {
+  title: 'Resolve a Path to File/Folder ID',
+  description:
+    'Resolve a pCloud absolute path to the canonical {fileid|folderid, isfolder} form via ' +
+    'stat. Use this when an agent has only a path and needs to chain into tools that prefer ' +
+    'numeric ids (e.g. delete by id, download by id).',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: ResolveInputSchema,
+};
 
 export async function resolveHandler(
   args: { path: string },

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const GetaudiolinkInputSchema = z
   .object({
@@ -19,6 +20,18 @@ export const GetaudiolinkOutputSchema = PcloudSuccess.extend({
   hosts: z.array(z.string()),
   path: z.string(),
 });
+
+export const GetaudiolinkToolMeta: ToolMeta<typeof GetaudiolinkInputSchema> = {
+  title: 'Get Audio Streaming Link',
+  description:
+    'Return an MP3 streaming URL for an audio (or video) file — also usable to extract the ' +
+    'audio track from a video, or to play FLAC etc. on MP3-only devices. abitrate controls the ' +
+    'transcode bitrate (16–320 kbit, default 192). The generated link accepts a start GET ' +
+    "parameter to skip ahead N seconds. This method can't be used from web applications. " +
+    'Referrer is restricted to pcloud.com.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: GetaudiolinkInputSchema,
+};
 
 export async function getaudiolinkHandler(
   args: { fileid?: number; path?: string; forcedownload?: boolean; contenttype?: string; abitrate?: number },

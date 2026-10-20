@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const FindInputSchema = z.object({
   query: z.string().min(1).describe('Substring to search for (case-insensitive)'),
@@ -28,6 +29,18 @@ export const FindOutputSchema = z.object({
 });
 
 export type FindOutput = z.infer<typeof FindOutputSchema>;
+
+export const FindToolMeta: ToolMeta<typeof FindInputSchema> = {
+  title: 'Find Files / Folders by Name',
+  description:
+    'Search a folder tree (default root) for entries whose name contains the query substring ' +
+    '(case-insensitive). pCloud exposes no documented search endpoint, so this walks listfolder ' +
+    'recursively. maxDepth caps the descent (default 3, max 10) and maxResults caps matches ' +
+    '(default 100). Returned matches carry the full path so callers can chain into readfile/' +
+    'stat without a separate resolve.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: FindInputSchema,
+};
 
 export async function findHandler(
   args: { query: string; folderid?: number; maxDepth?: number; maxResults?: number },

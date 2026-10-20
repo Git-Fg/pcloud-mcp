@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { readFileChunked, makeProgressNotifier, type ToolCtx } from '../http/upload.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const UploadfileInputSchema = z
   .object({
@@ -31,6 +32,19 @@ export const UploadfileOutputSchema = PcloudSuccess.extend({
   fileids: z.array(z.number().int().positive()).optional(),
   metadata: z.array(z.object({}).passthrough()).optional(),
 });
+
+export const UploadfileToolMeta: ToolMeta<typeof UploadfileInputSchema> = {
+  title: 'Upload a File to pCloud',
+  description:
+    'Read a local file and upload it to a pCloud folder via multipart POST. Specify the ' +
+    'destination with folderid + filename (preferred) or path; if both folderid and path are ' +
+    'omitted, the root folder is selected. Set renameifexists to avoid overwriting; set ' +
+    'nopartial to drop incomplete files on connection drops. mtime sets the modified time ' +
+    '(unix seconds); ctime sets the creation time but requires mtime to be provided as well. ' +
+    'The server has access to the local filesystem.',
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+  inputSchema: UploadfileInputSchema,
+};
 
 export async function uploadfileHandler(
   args: {

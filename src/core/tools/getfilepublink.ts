@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const GetfilepublinkInputSchema = z
   .object({
@@ -23,6 +24,16 @@ export const GetfilepublinkOutputSchema = PcloudSuccess.extend({
   shortlink: z.string().optional(),
   shortcode: z.string().optional(),
 });
+
+export const GetfilepublinkToolMeta: ToolMeta<typeof GetfilepublinkInputSchema> = {
+  title: 'Create Public Link to a File',
+  description:
+    'Create a public share link to a file. Returns the link URL and code. Optional constraints: ' +
+    'expire, maxdownloads, maxtraffic, shortlink, linkpassword. Note: pCloud restricts the ' +
+    'referrer to pcloud.com for these links, so some embedded preview flows will not work.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+  inputSchema: GetfilepublinkInputSchema,
+};
 
 export async function getfilepublinkHandler(
   args: {

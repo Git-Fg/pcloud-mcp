@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const DiffInputSchema = z
   .object({
@@ -27,6 +28,19 @@ export const DiffOutputSchema = PcloudSuccess.extend({
   diffid: z.union([z.string(), z.number()]).optional(),
   entries: z.array(z.object({}).passthrough()).optional(),
 });
+
+export const DiffToolMeta: ToolMeta<typeof DiffInputSchema> = {
+  title: 'List Account Changes (Sync Primitive)',
+  description:
+    "pCloud's only sync primitive. With no args, returns the latest diffid (use last=0). " +
+    'Pass diffid to receive only changes since that point. Use after as RFC-822 datetime for ' +
+    'time-based polling. limit caps the entries array. block long-polls until new changes ' +
+    'arrive, but only works when diffid is provided and does not work together with after or ' +
+    'last. pCloud compacts events older than ~6 months, so re-download state from zero if a ' +
+    'diffid is stale.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: DiffInputSchema,
+};
 
 export async function diffHandler(
   args: {

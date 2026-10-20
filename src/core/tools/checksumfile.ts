@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const ChecksumfileInputSchema = z
   .object({
@@ -19,6 +20,17 @@ export const ChecksumfileOutputSchema = z
     metadata: PcloudMetadata,
   })
   .passthrough();
+
+export const ChecksumfileToolMeta: ToolMeta<typeof ChecksumfileInputSchema> = {
+  title: 'Get File Checksum(s)',
+  description:
+    'Return the cryptographic hash(es) for a file. SHA-1 is always returned. MD5 is added by ' +
+    'US API servers, SHA-256 by EU API servers — call once on each region to get the full set. ' +
+    'Use this to compare two files, or to verify an upload / download round-trip without ' +
+    're-reading the bytes.',
+  annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
+  inputSchema: ChecksumfileInputSchema,
+};
 
 export async function checksumfileHandler(
   args: { fileid?: number; path?: string },

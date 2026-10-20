@@ -13,6 +13,7 @@ All five stay in the surface in case a `PCLOUD_AUTH` session-token mode is wired
 
 ## Other endpoint quirks
 
+- Upload links live in a separate pCloud family from public-download links: `listuploadlinks` / `deleteuploadlink` are keyed by `uploadlinkid`, while `listpublinks` / `deletepublink` cover only the public-download family (keyed by `linkid`). This server exposes neither `listuploadlinks` nor `deleteuploadlink`, so a drop created by `createuploadlink` cannot be listed or revoked through the MCP surface; close it by re-running `showuploadlink` with a past `expire` (pCloud maps the expired-link case to 7004, and its datetime parser accepts a past value) or from the pCloud web UI. The past-`expire` close is documented-plausible but has not been live-verified.
 - `deletepublink` returns `2027` for an unknown linkid (informative; idempotent in spirit but not literally).
 - `getfilepublink`, `getfilelink`, `getvideolink`, `getaudiolink` are referrer-restricted to pcloud.com — the streaming/download URLs they return will not work when embedded in a third-party page.
 - `extractarchive` runs server-side for ~2s: a `finished=false` response carries a `progresshash` that only the returned `hostname` can poll (`extractarchiveprogress` is 1000-blocked for OAuth tokens and is not exposed as a tool).

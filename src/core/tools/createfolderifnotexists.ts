@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudMetadata, PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const CreatefolderifnotexistsInputSchema = z
   .object({
@@ -22,6 +23,17 @@ export const CreatefolderifnotexistsOutputSchema = PcloudSuccess.extend({
  * erroring when the name already exists. Per pCloud docs, `created` is true
  * when a new folder was made and absent/false when it was returned as-is.
  */
+export const CreatefolderifnotexistsToolMeta: ToolMeta<typeof CreatefolderifnotexistsInputSchema> = {
+  title: 'Create a Folder (Idempotent)',
+  description:
+    'Idempotent version of createfolder: if a folder with the same name already exists under ' +
+    'the parent (or the path already resolves to a folder), its existing metadata is returned ' +
+    'instead of erroring with 2004. Use this when the caller does not know whether the folder ' +
+    'exists. `created` is true on a fresh folder, false when the existing one was returned.',
+  annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+  inputSchema: CreatefolderifnotexistsInputSchema,
+};
+
 export async function createfolderifnotexistsHandler(
   args: { folderid?: number; name?: string; path?: string },
   _ctx: unknown

@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
+  build-test-lint:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -38,3 +38,12 @@ jobs:
 
       - name: Lint
         run: bun run lint
+
+      - name: Tool-count drift check
+        run: |
+          ACTUAL=$(grep -c "meta: [A-Za-z]*ToolMeta" src/core/tools/index.ts)
+          # Check AGENTS.md and README.md don't hardcode a stale count
+          if grep -nE '[0-9]+ (tools|typed tools)' AGENTS.md README.md 2>/dev/null | grep -v 'grep -c' ; then
+            echo "::warning::AGENTS.md or README.md may hardcode a tool count. Use the audit command instead."
+          fi
+          echo "Registered tools: $ACTUAL"

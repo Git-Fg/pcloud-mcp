@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { readFileChunked, makeProgressNotifier, type ToolCtx } from '../http/upload.js';
 import { PcloudSuccess } from './schemas.js';
+import { ToolMeta } from './tool-meta.js';
 
 export const UploadtolinkInputSchema = z
   .object({
@@ -21,6 +22,16 @@ export const UploadtolinkOutputSchema = PcloudSuccess.extend({
   fileids: z.array(z.number().int().positive()).optional(),
   metadata: z.array(z.object({}).passthrough()).optional(),
 });
+
+export const UploadtolinkToolMeta: ToolMeta<typeof UploadtolinkInputSchema> = {
+  title: 'Upload a File to an Upload Link',
+  description:
+    'Upload a local file to a pCloud upload link by code. The link owner gets the file in the ' +
+    'destination folder. No access token is sent — pCloud authenticates by the link code. ' +
+    'Emits notifications/progress while reading the local file.',
+  annotations: { readOnlyHint: false, destructiveHint: false, openWorldHint: true },
+  inputSchema: UploadtolinkInputSchema,
+};
 
 export async function uploadtolinkHandler(
   args: {
