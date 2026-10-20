@@ -18,6 +18,9 @@ fi
 echo "Regenerating pcloud CLI (pcloud.ts)..."
 "$MCPORTER" generate-cli --server config/mcporter.gen.json --output pcloud.ts
 
+# Post-process: replace em dashes with hyphens (mcporter template emits them).
+python3 -c "p='pcloud.ts'; s=open(p).read(); open(p,'w').write(s.replace('\u2014','-'))"
+
 echo "Rebuilding bundled CLI (pcloud-cli.js)..."
 bun build pcloud.ts --target=bun --outfile=pcloud-cli.js --minify
 
