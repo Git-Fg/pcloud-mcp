@@ -6,7 +6,7 @@ Only the latest commit on `main` is supported. There are no long-term support br
 
 ## Reporting a vulnerability
 
-This is a private repository. If you believe you have found a security vulnerability, please report it privately rather than opening a public issue:
+This is a public repository. If you believe you have found a security vulnerability, please report it privately rather than opening a public issue:
 
 - **Preferred:** open a private security advisory at https://github.com/Git-Fg/pcloud-mcp/security/advisories/new
 - **Alternative:** contact the maintainer on GitHub at https://github.com/Git-Fg (user `@Git-Fg`) with a description, reproduction steps, and impact assessment.
