@@ -1,6 +1,6 @@
-// Generated on 2026-10-19T19:59:07.654Z by pcloud-mcp@1.0.0
+// Generated on 2026-10-20T03:01:18.565Z by pcloud-mcp@1.0.0
 // Server: pcloud
-// Source: /Users/felix/Documents/pcloud_mcp/config/mcporter.json
+// Source: /Users/felix/Documents/pcloud_mcp/.tower/worktrees/wt-7/config/mcporter.json
 // Transport: STDIO sh -c set -a && . /Users/felix/Documents/pcloud_mcp/.env && cd /Users/felix/Documents/pcloud_mcp && exec bun run src/index.ts
 
 import type { CallResult } from 'mcporter';
@@ -9,7 +9,7 @@ export interface PcloudTools {
   /**
    * Get account info for the authenticated pCloud user (id, email, quota, premium status).
    */
-  userinfo(): Promise<object>;
+  userinfo(params?: Record<string, unknown>): Promise<CallResult>;
 
   /**
    * List the contents of a pCloud folder by folderid. pCloud does not paginate natively; use
@@ -23,7 +23,7 @@ export interface PcloudTools {
    * @param limit? Client-side cap on items returned (pCloud does not paginate; default 200)
    * @param offset? Client-side offset into the listing (use with limit for paging)
    */
-  listfolder(folderid?: number, nofiles?: boolean, noshares?: boolean, recursive?: boolean, showdeleted?: boolean): Promise<object>;
+  listfolder(params?: { folderid?: number; nofiles?: boolean; noshares?: boolean; recursive?: boolean; showdeleted?: boolean } & Record<string, unknown>): Promise<CallResult>;
   // optional (2): limit, offset
 
   /**
@@ -32,7 +32,7 @@ export interface PcloudTools {
    * @param fileid? File or folder ID (discouraged: path is preferred)
    * @param path? Path to file or folder (preferred)
    */
-  stat(fileid?: number, path?: string): Promise<object>;
+  stat(params?: { fileid?: number; path?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Return a download URL for a file by fileid or path. URL is short-lived and token-scoped. This method
@@ -45,7 +45,7 @@ export interface PcloudTools {
    * @param maxspeed? Throttle the download to this many bytes per second
    * @param skipfilename? If true, omit the filename from Content-Disposition
    */
-  getfilelink(fileid?: number, path?: string, forcedownload?: boolean, contenttype?: string, maxspeed?: number): Promise<object>;
+  getfilelink(params?: { fileid?: number; path?: string; forcedownload?: boolean; contenttype?: string; maxspeed?: number } & Record<string, unknown>): Promise<CallResult>;
   // optional (1): skipfilename
 
   /**
@@ -59,7 +59,7 @@ export interface PcloudTools {
    * @param path? File path (discouraged)
    * @param maxBytes? Safety cap on returned bytes (default 1 MB)
    */
-  readfile(fileid?: number, path?: string, maxBytes?: number): Promise<object>;
+  readfile(params?: { fileid?: number; path?: string; maxBytes?: number } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Return the version history of a file by fileid or path (newest first).
@@ -67,7 +67,7 @@ export interface PcloudTools {
    * @param fileid? File ID
    * @param path? File path (discouraged)
    */
-  listrevisions(fileid?: number, path?: string): Promise<object>;
+  listrevisions(params?: { fileid?: number; path?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Create a new folder under a parent folder (id 0 = root). Errors if the name already exists.
@@ -75,7 +75,7 @@ export interface PcloudTools {
    * @param folderid? Parent folder ID (0 for root)
    * @param name Name of the new folder
    */
-  createfolder(folderid?: number, name: string): Promise<object>;
+  createfolder(params: { folderid?: number; name: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Rename or move a file in a single atomic call. Provide topath, or tofolderid+toname. If the
@@ -89,7 +89,7 @@ export interface PcloudTools {
    * @param tofolderid? Destination folder ID
    * @param toname? Destination filename
    */
-  renamefile(fileid?: number, path?: string, topath?: string, tofolderid?: number, toname?: string): Promise<object>;
+  renamefile(params?: { fileid?: number; path?: string; topath?: string; tofolderid?: number; toname?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Rename or move a folder in a single atomic call. Provide topath, or tofolderid+toname.
@@ -101,7 +101,7 @@ export interface PcloudTools {
    * @param tofolderid? Destination parent folder ID
    * @param toname? New folder name
    */
-  renamefolder(folderid?: number, path?: string, topath?: string, tofolderid?: number, toname?: string): Promise<object>;
+  renamefolder(params?: { folderid?: number; path?: string; topath?: string; tofolderid?: number; toname?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Read a local file and upload it to a pCloud folder via multipart POST. Specify the destination with
@@ -121,7 +121,7 @@ export interface PcloudTools {
    * @param progresshash? Hash returned to the client for resumable-upload polling (used by pCloud's
    *                      binary protocol, not by this MCP server).
    */
-  uploadfile(filePath: string, folderid?: number, path?: string, filename?: string, renameifexists?: boolean): Promise<object>;
+  uploadfile(params: { filePath: string; folderid?: number; path?: string; filename?: string; renameifexists?: boolean } & Record<string, unknown>): Promise<CallResult>;
   // optional (4): nopartial, mtime, ctime, progresshash
 
   /**
@@ -133,7 +133,7 @@ export interface PcloudTools {
    * @param fileid? File ID to delete
    * @param path? Path to file (mutually exclusive with fileid)
    */
-  deletefile(fileid?: number, path?: string): Promise<object>;
+  deletefile(params?: { fileid?: number; path?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Delete a folder that is already empty, by folderid or path. For non-empty folders use
@@ -142,7 +142,7 @@ export interface PcloudTools {
    * @param folderid? Folder ID to delete (must be empty)
    * @param path? Path to empty folder (mutually exclusive with folderid)
    */
-  deletefolder(folderid?: number, path?: string): Promise<object>;
+  deletefolder(params?: { folderid?: number; path?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Resolve a pCloud absolute path to the canonical {fileid|folderid, isfolder} form via stat. Use this
@@ -151,14 +151,14 @@ export interface PcloudTools {
    *
    * @param path Absolute path to a file or folder (e.g. "/docs/spec.md")
    */
-  resolve(path: string): Promise<object>;
+  resolve(params: { path: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * List the contents of the pCloud Trash (root folderid=0 unless nested). Items in trash have
    * origparentfolderid showing the folder they were deleted from. Use trash_restore to recover an item
    * by its fileid/folderid.
    */
-  trash_list(folderid?: number, nofiles?: boolean, recursive?: boolean): Promise<object>;
+  trash_list(params?: { folderid?: number; nofiles?: boolean; recursive?: boolean } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Restore a file or folder from the trash by fileid or folderid. Optionally target a destination
@@ -168,14 +168,14 @@ export interface PcloudTools {
    * @param folderid? Folder id to restore (0 = restore the entire trash)
    * @param restoreto? Destination folder id
    */
-  trash_restore(fileid?: number, folderid?: number, restoreto?: number, metadata?: boolean): Promise<object>;
+  trash_restore(params?: { fileid?: number; folderid?: number; restoreto?: number; metadata?: boolean } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Create a public share link to a file. Returns the link URL and code. Optional constraints: expire,
    * maxdownloads, maxtraffic, shortlink, linkpassword. Note: pCloud restricts the referrer to pcloud.com
    * for these links, so some embedded preview flows will not work.
    */
-  getfilepublink(fileid?: number, path?: string, expire?: string, maxdownloads?: number, maxtraffic?: number): Promise<object>;
+  getfilepublink(params?: { fileid?: number; path?: string; expire?: string; maxdownloads?: number; maxtraffic?: number } & Record<string, unknown>): Promise<CallResult>;
   // optional (2): shortlink, linkpassword
 
   /**
@@ -183,19 +183,19 @@ export interface PcloudTools {
    * here limits total downloads from the folder, not per-file. Root folder (folderid=0) cannot be
    * shared.
    */
-  getfolderpublink(folderid?: number, path?: string, expire?: string, maxdownloads?: number, maxtraffic?: number): Promise<object>;
+  getfolderpublink(params?: { folderid?: number; path?: string; expire?: string; maxdownloads?: number; maxtraffic?: number } & Record<string, unknown>): Promise<CallResult>;
   // optional (2): shortlink, linkpassword
 
   /**
    * Return every public link the account has created, with their metadata, expiry, and traffic/download
    * counters.
    */
-  listpublinks(): Promise<object>;
+  listpublinks(params?: Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Delete a single public link by its linkid. Idempotent: a missing linkid returns error 2027.
    */
-  deletepublink(linkid: number): Promise<object>;
+  deletepublink(params: { linkid: number } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * pCloud's only sync primitive. With no args, returns the latest diffid (use last=0). Pass diffid to
@@ -211,7 +211,7 @@ export interface PcloudTools {
    * @param block? If true, block the server response until new changes are available (advanced;
    *               long-poll)
    */
-  diff(diffid?: number, after?: string, last?: number, limit?: number, block?: boolean): Promise<object>;
+  diff(params?: { diffid?: number; after?: string; last?: number; limit?: number; block?: boolean } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Search a folder tree (default root) for entries whose name contains the query substring
@@ -222,7 +222,7 @@ export interface PcloudTools {
    *
    * @param query Substring to search for (case-insensitive)
    */
-  find(query: string, folderid?: number, maxDepth?: number, maxResults?: number): Promise<object>;
+  find(params: { query: string; folderid?: number; maxDepth?: number; maxResults?: number } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Create an upload link that lets anyone with the link upload files into a folder you own. comment is
@@ -236,7 +236,7 @@ export interface PcloudTools {
    * @param maxspace? Max total bytes the link will accept
    * @param maxfiles? Max total files the link will accept
    */
-  createuploadlink(folderid?: number, path?: string, comment: string, expire?: string, maxspace?: number): Promise<object>;
+  createuploadlink(params: { folderid?: number; path?: string; comment: string; expire?: string; maxspace?: number } & Record<string, unknown>): Promise<CallResult>;
   // optional (1): maxfiles
 
   /**
@@ -250,7 +250,7 @@ export interface PcloudTools {
    * @param nopartial? If true, partially uploaded files are discarded on connection drop
    * @param progresshash? Hash used with uploadlinkprogress to poll progress
    */
-  uploadtolink(code: string, filePath: string, filename?: string, nopartial?: boolean, progresshash?: string): Promise<object>;
+  uploadtolink(params: { code: string; filePath: string; filename?: string; nopartial?: boolean; progresshash?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Inspect an upload link (returns code, link, mail, comment, expires, maxspace, maxfiles) and
@@ -259,7 +259,7 @@ export interface PcloudTools {
    *
    * @param uploadlinkid Upload link id returned by createuploadlink
    */
-  showuploadlink(uploadlinkid: number, expire?: string, deleteexpire?: boolean, maxspace?: number, maxfiles?: number): Promise<object>;
+  showuploadlink(params: { uploadlinkid: number; expire?: string; deleteexpire?: boolean; maxspace?: number; maxfiles?: number } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Server-side copy of a file. Source by fileid or path; destination by topath, or tofolderid (+
@@ -276,7 +276,7 @@ export interface PcloudTools {
    * @param mtime? Set modified time (unix seconds)
    * @param ctime? Set created time (unix seconds); requires mtime
    */
-  copyfile(fileid?: number, path?: string, tofolderid?: number, topath?: string, toname?: string): Promise<object>;
+  copyfile(params?: { fileid?: number; path?: string; tofolderid?: number; topath?: string; toname?: string } & Record<string, unknown>): Promise<CallResult>;
   // optional (3): noover, mtime, ctime
 
   /**
@@ -294,7 +294,7 @@ export interface PcloudTools {
    * @param copycontentonly? If true, copy the contents of source into dest rather than nesting under
    *                         dest
    */
-  copyfolder(folderid?: number, path?: string, tofolderid?: number, topath?: string, toname?: string): Promise<object>;
+  copyfolder(params?: { folderid?: number; path?: string; tofolderid?: number; topath?: string; toname?: string } & Record<string, unknown>): Promise<CallResult>;
   // optional (3): noover, skipexisting, copycontentonly
 
   /**
@@ -305,7 +305,7 @@ export interface PcloudTools {
    * @param path? File path to revert (mutually exclusive with fileid)
    * @param revisionid Revision id to revert to
    */
-  revertrevision(fileid?: number, path?: string, revisionid: number): Promise<object>;
+  revertrevision(params: { fileid?: number; path?: string; revisionid: number } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Idempotent version of createfolder: if a folder with the same name already exists under the parent
@@ -317,7 +317,7 @@ export interface PcloudTools {
    * @param name? Name of the folder to create or return
    * @param path? Full path to the folder (discouraged; prefer folderid + name)
    */
-  createfolderifnotexists(folderid?: number, name?: string, path?: string): Promise<object>;
+  createfolderifnotexists(params?: { folderid?: number; name?: string; path?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Ask pCloud to fetch one or more URLs and store the resulting file(s) in a folder you own. Pass a
@@ -334,7 +334,7 @@ export interface PcloudTools {
    * @param progresshash? Optional client-side progress token (not polled by the MCP server; returned to
    *                      the caller for its own tracking).
    */
-  downloadfile(url: string, folderid?: number, path?: string, target?: string, progresshash?: string): Promise<object>;
+  downloadfile(params: { url: string; folderid?: number; path?: string; target?: string; progresshash?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Return the cryptographic hash(es) for a file. SHA-1 is always returned. MD5 is added by US API
@@ -344,7 +344,7 @@ export interface PcloudTools {
    * @param fileid? File ID to checksum
    * @param path? Path to file (mutually exclusive with fileid)
    */
-  checksumfile(fileid?: number, path?: string): Promise<object>;
+  checksumfile(params?: { fileid?: number; path?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Return a thumbnail download URL for an image file. size is required (WIDTHxHEIGHT; width 16–2048,
@@ -359,7 +359,7 @@ export interface PcloudTools {
    * @param crop? If true, crop to exactly the requested size (may cut edges)
    * @param type? Only "png" is documented (default format is jpeg)
    */
-  getthumblink(fileid?: number, path?: string, size: string, crop?: boolean, type?: string): Promise<object>;
+  getthumblink(params: { fileid?: number; path?: string; size: string; crop?: boolean; type?: string } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Return a transcoded streaming URL for a video file (FLV container, x264/mp3, adaptive bitrate by
@@ -379,7 +379,7 @@ export interface PcloudTools {
    * @param resolution? Transcode resolution WIDTHxHEIGHT (64x64 to 1280x960)
    * @param fixedbitrate? If true, disable adaptive streaming (constant bitrate)
    */
-  getvideolink(fileid?: number, path?: string, forcedownload?: boolean, contenttype?: string, maxspeed?: number): Promise<object>;
+  getvideolink(params?: { fileid?: number; path?: string; forcedownload?: boolean; contenttype?: string; maxspeed?: number } & Record<string, unknown>): Promise<CallResult>;
   // optional (5): skipfilename, abitrate, vbitrate, resolution, fixedbitrate
 
   /**
@@ -394,21 +394,21 @@ export interface PcloudTools {
    * @param contenttype? Override the response Content-Type
    * @param abitrate? Audio bitrate in kbit (16–320, default 192)
    */
-  getaudiolink(fileid?: number, path?: string, forcedownload?: boolean, contenttype?: string, abitrate?: number): Promise<object>;
+  getaudiolink(params?: { fileid?: number; path?: string; forcedownload?: boolean; contenttype?: string; abitrate?: number } & Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Return the API servers closest to the requesting client (no auth required). Biggest speed gain is
    * for upload methods. Clients should keep fallback logic: if a regional server fails with a network
    * error, fall back to api.pcloud.com.
    */
-  getapiserver(): Promise<object>;
+  getapiserver(params?: Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Return the ip and hostname of the server currently handling requests (no auth required). The
    * hostname resolves only to the same server. Useful to pin an upload target when polling upload
    * progress.
    */
-  currentserver(): Promise<object>;
+  currentserver(params?: Record<string, unknown>): Promise<CallResult>;
 
   /**
    * Ask pCloud to extract an archive (zip/tar/etc.) already in your filesystem into a destination
@@ -426,7 +426,7 @@ export interface PcloudTools {
    * @param nooutput? If true, omit the extraction output lines from the response
    * @param overwrite? What to do when a target file already exists (default 'rename')
    */
-  extractarchive(fileid?: number, path?: string, tofolderid?: number, topath?: string, toname?: string): Promise<object>;
+  extractarchive(params?: { fileid?: number; path?: string; tofolderid?: number; topath?: string; toname?: string } & Record<string, unknown>): Promise<CallResult>;
   // optional (3): password, nooutput, overwrite
 
   /**
@@ -437,6 +437,6 @@ export interface PcloudTools {
    * @param folderid? Folder ID to delete (with all contents)
    * @param path? Path to folder (discouraged)
    */
-  deletefolderrecursive(folderid?: number, path?: string): Promise<object>;
+  deletefolderrecursive(params?: { folderid?: number; path?: string } & Record<string, unknown>): Promise<CallResult>;
 }
 

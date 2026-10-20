@@ -1,6 +1,6 @@
-// Generated on 2026-10-19T19:59:03.658Z by pcloud-mcp@1.0.0
+// Generated on 2026-10-20T03:01:09.311Z by pcloud-mcp@1.0.0
 // Server: pcloud
-// Source: /Users/felix/Documents/pcloud_mcp/config/mcporter.json
+// Source: /Users/felix/Documents/pcloud_mcp/.tower/worktrees/wt-7/config/mcporter.json
 // Transport: STDIO sh -c set -a && . /Users/felix/Documents/pcloud_mcp/.env && cd /Users/felix/Documents/pcloud_mcp && exec bun run src/index.ts
 
 import type { CallResult } from 'mcporter';
