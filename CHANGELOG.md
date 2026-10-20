@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Upgrade mcporter from ^0.7.3 to ^0.15.0, fixing all known defects in the generated client:
+  - Zero-arg tools like userinfo() no longer throw 'Too many positional arguments'
+  - Generated .d.ts is valid TypeScript with proper optional parameters
+  - Hidden optional params are properly omitted by default but can be included with --include-optional flag
+- Regenerate all mcporter artifacts with the new version
+
+### Changed
 
 - Clean repository layout with a full README, AGENTS.md, and MIT `LICENSE`.
 - `docs/pcloud-notes.md` documenting pCloud endpoint limitations and access-token provenance.
