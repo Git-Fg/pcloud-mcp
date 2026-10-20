@@ -1,0 +1,25 @@
+node_modules/
+.mcp.json
+dist/
+.env
+*.log
+.DS_Store
+.agents/
+references/
+
+# Machine-local MCP registrations (absolute paths, secrets-adjacent).
+.mcp.json.local
+.kimi-code/
+
+# mcporter codegen config (object-form command, cwd ".") is one of two tracked
+# configs: see CONTRIBUTING.md § "Dual-config watch" for why both exist. Consumed
+# by `generate-cli --server config/mcporter.gen.json`. config/mcporter.json is the
+# runtime config (string+args form) used by `emit-ts` and `mcporter list`.
+
+# mcporter emit-ts outputs are per-developer (regenerated; see AGENTS.md recipe).
+generated/pcloud-client.ts
+generated/pcloud-client.d.ts
+generated/pcloud-types.d.ts
+generated/pcloud-cli.js
+
+# package-lock.json is tracked for Docker (npm ci); bun.lock is tracked for bun installs.

@@ -1,0 +1,36 @@
+#!/bin/bash
+set -euo pipefail
+
+MCPORTER="$PWD/node_modules/.bin/mcporter"
+if [ ! -x "$MCPORTER" ]; then
+  echo "FATAL: $MCPORTER not found. Run 'bun install' first." >&2
+  exit 1
+fi
+MCPORTER_VERSION="$("$MCPORTER" --version 2>/dev/null || echo unknown)"
+if [ "$MCPORTER_VERSION" != "0.15.0" ]; then
+  echo "FATAL: mcporter $MCPORTER_VERSION (expected 0.15.0). Regeneration would produce divergent artifacts." >&2
+  exit 1
+fi
+
+# Dual config: config/mcporter.gen.json (object form, consumed by generate-cli) and
+# config/mcporter.json (string+args form, consumed by emit-ts and the MCP runtime).
+# See CONTRIBUTING.md § "Dual-config watch" for the collapse condition and retest recipe.
+echo "Regenerating pcloud CLI (pcloud.ts)..."
+"$MCPORTER" generate-cli --server config/mcporter.gen.json --output pcloud.ts
+
+echo "Rebuilding bundled CLI (pcloud-cli.js)..."
+bun build pcloud.ts --target=bun --outfile=pcloud-cli.js --minify
+
+# Stage regenerated artifacts only when they actually changed.
+if ! git diff --quiet -- pcloud.ts pcloud-cli.js config/mcporter.gen.json; then
+  git add pcloud.ts pcloud-cli.js config/mcporter.gen.json
+fi
+
+# emit-ts outputs (generated/pcloud-client.ts, .d.ts, pcloud-types.d.ts) are
+# gitignored (per-developer). Rebuild them only when REGEN_ALL=1 is set:
+#   REGEN_ALL=1 git commit ...
+if [ "${REGEN_ALL:-0}" = "1" ]; then
+  echo "REGEN_ALL=1: rebuilding generated/ emit-ts artifacts..."
+  "$MCPORTER" emit-ts pcloud --config config/mcporter.json --mode types --out generated/pcloud-types.d.ts
+  "$MCPORTER" emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts
+fi

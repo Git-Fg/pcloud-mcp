@@ -1,0 +1,3 @@
+[test]
+# Scoping the test runner to src/ keeps test discovery limited to project source.
+root = "src"
