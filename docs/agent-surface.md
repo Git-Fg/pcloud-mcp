@@ -17,13 +17,13 @@ fetchable_urls:
 
 # pCloud MCP Agent Surface
 
-A typed MCP server exposing the pCloud HTTP/JSON API methods as tools for any MCP client (Claude Code, Kimi Code, Cursor, VS Code, etc.). Built with `@modelcontextprotocol/sdk` v2, TypeScript, and Bun. Tool count: `grep -c 'server.registerTool' src/core/tools/index.ts` (do not hardcode it).
+A typed MCP server exposing the pCloud HTTP/JSON API methods as tools for any MCP client (Claude Code, Kimi Code, Cursor, VS Code, etc.). Built with `@modelcontextprotocol/sdk` v2, TypeScript, and Bun. The tool list is the `tools` array in `src/core/tools/index.ts`; enumerate it rather than hardcoding a count.
 
 ## Gotchas
 
 1. **Token provenance split — OAuth tokens rejected by trash endpoints** — `trash_list` and `trash_restore` return `1000 Log in required` for OAuth `access_token=` while legacy `/getauth` session tokens (`auth=`) work (confirmed for this account). `listrevisions`, `createuploadlink`, and `revertrevision` show the same `1000` symptom with an unconfirmed cause. No scope parameter exists to widen access. Source: [[docs/pcloud-notes]] (live-verified state) + rclone #3853.
 2. **Referrer restriction on streaming/download links** — `getfilepublink`, `getfilelink`, `getvideolink`, `getaudiolink` return URLs restricted to `pcloud.com` referrer; embedded previews in third-party pages will fail. Source: [pCloud getfilepublink](https://docs.pcloud.com/methods/getfilepublink/).
-3. **Pre-commit hook pins PATH to `node_modules/.bin`** — bare `mcporter` resolves to pnpm-global (stale 0.7.3) and clobbers artifacts; the hook uses `PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server pcloud`. Source: `.git/hooks/pre-commit:5-7`.
+3. **Regenerate with the repo-local mcporter, never the bare command** — bare `mcporter` resolves to the stale pnpm-global copy and clobbers artifacts. The tracked hook `.githooks/pre-commit` invokes `node_modules/.bin/mcporter` and regenerates from the tracked codegen definition `config/mcporter.gen.json`; do the same when regenerating by hand. Source: [[CONTRIBUTING.md]].
 
 
 ## Best Practices
@@ -63,11 +63,11 @@ A typed MCP server exposing the pCloud HTTP/JSON API methods as tools for any MC
    // add to the tools array, then the existing loop registers it:
    { name: 'newtool', meta: NewtoolToolMeta, handler: newtoolHandler, outputSchema: OUTPUT_SCHEMA },
    ```
-   Verification: gate passes; `grep -c server.registerTool src/core/tools/index.ts` increments.
+   Verification: gate passes; the new tool's row is present in the `tools` array in `src/core/tools/index.ts`, and `bun run pcloud.ts --help` lists it after a regen.
 
 3. **Full artifact regen**
    ```sh
-   PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server '{"name":"pcloud","command":{"kind":"stdio","command":"sh","args":["-c","if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"],"cwd":"."},"description":"MCP server for pCloud"}' --output pcloud.ts
+   PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server config/mcporter.gen.json --output pcloud.ts
    bun build pcloud.ts --target=bun --outfile=generated/pcloud-cli.js --minify
    PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode types --out generated/pcloud-types.d.ts
    PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts

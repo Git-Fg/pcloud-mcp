@@ -1,27 +1,31 @@
 #!/bin/bash
 set -euo pipefail
 
-# mcporter generate-cli only accepts an object-form command definition (a path to
-# config/mcporter.json, which is array form, would set an absolute source path and
-# leak the host's home directory into pcloud.ts). The inline JSON below is the
-# codegen definition; keep it in sync with config/mcporter.json.
-PCLOUD_GEN_JSON='{"name":"pcloud","command":{"kind":"stdio","command":"sh","args":["-c","if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"],"cwd":"."},"description":"MCP server for pCloud: 37 typed tools over the pCloud HTTP/JSON API, stdio + HTTP transports, non-OAuth static access token."}'
+MCPORTER="$PWD/node_modules/.bin/mcporter"
+if [ ! -x "$MCPORTER" ]; then
+  echo "FATAL: $MCPORTER not found. Run 'bun install' first." >&2
+  exit 1
+fi
+MCPORTER_VERSION="$("$MCPORTER" --version 2>/dev/null || echo unknown)"
+[ "$MCPORTER_VERSION" = "0.15.0" ] || echo "WARN: mcporter $MCPORTER_VERSION (expected 0.15.0)" >&2
 
+# Single source of truth: config/mcporter.gen.json (object-form command, cwd ".").
+# It must be the object form: generate-cli reads the server command definition from
+# it, and because cwd is repo-relative the generated pcloud.ts stays host-path-free.
+# config/mcporter.json is the runtime config (string + args form) used by emit-ts.
 echo "Regenerating pcloud CLI (pcloud.ts)..."
-PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server "$PCLOUD_GEN_JSON" --output pcloud.ts
+"$MCPORTER" generate-cli --server config/mcporter.gen.json --output pcloud.ts
 
 echo "Rebuilding bundled CLI (generated/pcloud-cli.js)..."
 bun build pcloud.ts --target=bun --outfile=generated/pcloud-cli.js --minify
 
-git add pcloud.ts generated/pcloud-cli.js
+git add pcloud.ts generated/pcloud-cli.js config/mcporter.gen.json
 
-# Note: emit-ts outputs (generated/pcloud-client.ts, .d.ts, pcloud-types.d.ts)
-# are gitignored (per-developer). Rebuild them only when REGEN_ALL=1 is set:
+# emit-ts outputs (generated/pcloud-client.ts, .d.ts, pcloud-types.d.ts) are
+# gitignored (per-developer). Rebuild them only when REGEN_ALL=1 is set:
 #   REGEN_ALL=1 git commit ...
-#   (or run the full regen commands from AGENTS.md manually)
 if [ "${REGEN_ALL:-0}" = "1" ]; then
   echo "REGEN_ALL=1: rebuilding generated/ emit-ts artifacts..."
-  PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode types --out generated/pcloud-types.d.ts
-  PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts
-  # emit-ts outputs are gitignored; nothing to stage.
+  "$MCPORTER" emit-ts pcloud --config config/mcporter.json --mode types --out generated/pcloud-types.d.ts
+  "$MCPORTER" emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts
 fi

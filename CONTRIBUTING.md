@@ -23,10 +23,10 @@ All four must pass with zero errors.
 
 ## Regenerating artifacts
 
-After any change to `src/core/tools/*` or `src/mcp/*`, regenerate the mcporter artifacts. The tracked runtime config is `config/mcporter.json` (relative paths, no host-specific values); codegen needs the object form, which is passed inline:
+After any change to `src/core/tools/*` or `src/mcp/*`, regenerate the mcporter artifacts. The tracked codegen definition is `config/mcporter.gen.json` (object-form command, repo-relative `cwd`); `config/mcporter.json` is the runtime config (string + args form) read by `emit-ts`. Both are repo-relative, so no host-specific values are needed:
 
 ```sh
-PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server '{"name":"pcloud","command":{"kind":"stdio","command":"sh","args":["-c","if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"],"cwd":"."},"description":"MCP server for pCloud"}' --output pcloud.ts
+PATH="$PWD/node_modules/.bin:$PATH" mcporter generate-cli --server config/mcporter.gen.json --output pcloud.ts
 bun build pcloud.ts --target=bun --outfile=generated/pcloud-cli.js --minify
 PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode types --out generated/pcloud-types.d.ts
 PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts

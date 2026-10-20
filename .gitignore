@@ -11,9 +11,10 @@ references/
 .mcp.json.local
 .kimi-code/
 
-# mcporter codegen-only config (object form, consumed by generate-cli).
-# config/mcporter.json is the tracked runtime config (string + args form, relative paths).
-config/mcporter.gen.json
+# mcporter codegen config (object-form command, cwd ".") is tracked as the single
+# source of truth for the CLI definition and is consumed by `generate-cli --server
+# config/mcporter.gen.json`. config/mcporter.json is the runtime config (string +
+# args form) used by `emit-ts` and `mcporter list`.
 
 # mcporter emit-ts outputs are per-developer (regenerated; see AGENTS.md recipe).
 generated/pcloud-client.ts

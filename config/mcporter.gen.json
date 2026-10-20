@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "pcloud": {
+      "command": {
+        "kind": "stdio",
+        "command": "sh",
+        "args": ["-c", "if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"],
+        "cwd": "."
+      },
+      "description": "MCP server for pCloud: 37 typed tools over the pCloud HTTP/JSON API, stdio + HTTP transports, non-OAuth static access token."
+    }
+  }
+}
