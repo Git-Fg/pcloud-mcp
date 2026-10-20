@@ -25,7 +25,6 @@ A typed MCP server exposing the pCloud HTTP/JSON API methods as tools for any MC
 2. **Referrer restriction on streaming/download links** — `getfilepublink`, `getfilelink`, `getvideolink`, `getaudiolink` return URLs restricted to `pcloud.com` referrer; embedded previews in third-party pages will fail. Source: [pCloud getfilepublink](https://docs.pcloud.com/methods/getfilepublink/).
 3. **Regenerate with the repo-local mcporter, never the bare command** — bare `mcporter` resolves to the stale pnpm-global copy and clobbers artifacts. The tracked hook `.githooks/pre-commit` invokes `node_modules/.bin/mcporter` and regenerates from the tracked codegen definition `config/mcporter.gen.json`; do the same when regenerating by hand. Source: [[CONTRIBUTING.md]].
 
-
 ## Best Practices
 
 1. **Run the 4-command gate before any commit** — `bun run typecheck && bun run build && bun test && bun run lint` (all tests, 0 errors expected).

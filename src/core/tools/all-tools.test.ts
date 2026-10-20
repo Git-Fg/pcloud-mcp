@@ -6,7 +6,7 @@ const CANNED: Record<string, unknown> = {
   userinfo: {
     result: 0,
     userid: 42,
-    email: 'felix@example.com',
+    email: 'test@example.com',
     quota: 100_000_000,
     usedquota: 10_000,
     premium: true,
@@ -158,7 +158,7 @@ describe('tool handlers (mocked pCloud)', () => {
     const body = r.structuredContent as { result: number; userid: number; email: string };
     expect(body.result).toBe(0);
     expect(body.userid).toBe(42);
-    expect(body.email).toBe('felix@example.com');
+    expect(body.email).toBe('test@example.com');
   });
 
   it('listfolder returns root contents inside metadata', async () => {

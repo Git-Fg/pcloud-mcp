@@ -61,7 +61,7 @@ Non-OAuth. A static `PCLOUD_ACCESS_TOKEN` is read from env and sent as the `?acc
 
 ## Tool surface
 
-The authoritative list, with titles, descriptions, and Zod input/output schemas, is `src/core/tools/index.ts`. The count is `grep -c 'server.registerTool' src/core/tools/index.ts` (do not hardcode it). Highlights:
+The authoritative list, with titles, descriptions, and Zod input/output schemas, is `src/core/tools/index.ts` (the `tools` array). Do not hardcode the count — a `grep -c 'server.registerTool'` is permanently 1 because registration is a single loop. Highlights:
 
 - Files: `stat`, `resolve`, `readfile`, `checksumfile`, `getfilelink`, `getthumblink`, `getvideolink`, `getaudiolink`, `renamefile`, `copyfile`, `deletefile`, `listrevisions`, `revertrevision`, `downloadfile`.
 - Folders: `listfolder`, `find`, `createfolder`, `createfolderifnotexists`, `renamefolder`, `copyfolder`, `deletefolder`, `deletefolderrecursive`.
