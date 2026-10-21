@@ -9,13 +9,10 @@ let calls: { url: string; status: number; body: string; contentType?: string }[]
 beforeEach(() => {
   originalFetch = globalThis.fetch;
   calls = [];
-  let callCount = 0;
-  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    callCount += 1;
-    const url = String(input);
+  globalThis.fetch = (async (_input: RequestInfo | URL) => {
     if (calls.length === 0) {
-      // No scripted response: synthesize one based on call number, helpful
-      // when assertions about "exactly one fetch" are needed.
+      // No scripted response: synthesize a default, helpful when assertions
+      // about "exactly one fetch" are needed.
       return new Response(JSON.stringify({ result: 0 }), { status: 200 });
     }
     const next = calls[0];
