@@ -79,7 +79,7 @@ export async function extractarchiveHandler(
   );
   const summary = response.finished
     ? `Extraction finished (${response.lines ?? 0} output lines)`
-    : `Extraction running, poll extractarchiveprogress with hash=${response.progresshash ?? '?'} on ${response.hostname ?? 'the same server'}`;
+    : `Extraction still running server-side (~2s timeout). pCloud returned a progresshash=${response.progresshash ?? '?'} on ${response.hostname ?? 'the same server'}. The MCP server does NOT expose an extractarchiveprogress tool (that endpoint rejects OAuth tokens with 1000; see docs/pcloud-notes.md). To resume polling, call the underlying pCloud API directly with the URL pattern shown in pCloud's API docs, OR list the destination folder after a few seconds and expect extraction to have finished.`;
   return {
     content: [{ type: 'text', text: summary }],
     structuredContent: response,

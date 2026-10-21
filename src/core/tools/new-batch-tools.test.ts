@@ -244,7 +244,7 @@ describe('batch-2 tools (mocked pCloud)', () => {
     const body = r.structuredContent as { finished: boolean; progresshash?: string; hostname?: string };
     expect(body.finished).toBe(false);
     expect(body.progresshash).toBe('KooPMKmcEBp');
-    expect(r.content[0].text).toContain('poll extractarchiveprogress');
+    expect(r.content[0].text).toContain('NOT expose an extractarchiveprogress tool');
     expect(r.content[0].text).toContain('api5.pcloud.com');
     const sent = new URL(requests[0].url).searchParams;
     expect(sent.get('fileid')).toBe('1');

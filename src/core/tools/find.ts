@@ -84,6 +84,14 @@ export async function findHandler(
         queue.push({ folderid: item.folderid, depth: depth + 1 });
       }
     }
+    // Per-level throttle: avoid hammering pCloud's `listfolder` endpoint on
+    // deep trees. pCloud rate-limits unauthenticated bursts; staying under
+    // 4 req/s keeps a wide safety margin against "4000 Too many login tries"
+    // lockouts. The `client.json` already retries 429/5xx, but a
+    // per-request delay prevents the re-trigger loop in the first place.
+    if (queue.length > 0) {
+      await new Promise((r) => setTimeout(r, 250));
+    }
   }
   const truncated = totalMatches > matches.length;
   const out: FindOutput = {

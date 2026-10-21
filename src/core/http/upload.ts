@@ -1,5 +1,14 @@
 import type { ServerContext, ProgressToken } from '@modelcontextprotocol/server';
-import { createReadStream } from 'node:fs';
+import { createReadStream, statSync } from 'node:fs';
+
+/**
+ * Default maximum file size for chunked reads (2 GB). pCloud supports larger,
+ * but Bun's FormData/Blob require the full buffer in memory before the
+ * multipart POST, and the V8 process can reliably hold ~2 GB before OOM.
+ * Above this limit, the read throws with a clear error rather than OOM-ing
+ * the agent. Callers can override via the `maxSize` argument.
+ */
+export const DEFAULT_MAX_FILE_BYTES = 2 * 1024 * 1024 * 1024;
 
 /**
  * The context every tool handler receives. Derived from the MCP SDK's own
@@ -16,13 +25,25 @@ export type ToolCtx = ServerContext | undefined;
  * count. Used by the upload tools to surface read progress; the bytes are
  * accumulated because Bun's `FormData`/`Blob` require the full buffer.
  *
- * The underlying stream is destroyed on every termination path (resolve,
- * error, or caller abort) so the file descriptor is not leaked.
+ * Pre-checks the file size against `maxSize` (default 2 GB) and throws if
+ * exceeded, before any chunks are accumulated. The underlying stream is
+ * destroyed on every termination path (resolve, error, or caller abort) so
+ * the file descriptor is not leaked.
  */
 export function readFileChunked(
   filePath: string,
-  onChunk: (bytes: number) => void
+  onChunk: (bytes: number) => void,
+  maxSize: number = DEFAULT_MAX_FILE_BYTES
 ): Promise<Buffer> {
+  // Pre-check: avoid accumulating gigabytes only to reject at the end.
+  const stat = statSync(filePath);
+  if (stat.size > maxSize) {
+    throw new RangeError(
+      `readFileChunked: ${filePath} is ${stat.size} bytes, exceeds the ` +
+        `${maxSize}-byte limit. pCloud supports larger files, but this ` +
+        `Bun runtime needs the full buffer in memory for multipart POST.`
+    );
+  }
   return new Promise<Buffer>((resolve, reject) => {
     const chunks: Buffer[] = [];
     let total = 0;

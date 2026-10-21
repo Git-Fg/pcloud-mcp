@@ -205,6 +205,10 @@ export class PcloudHttpClient {
         await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
       } finally {
         clearTimeout(timeoutId);
+        // Always abort the controller to release the underlying resources.
+        // Without this, controllers from failed-then-retry attempts can
+        // accumulate and leak the AbortSignal.
+        controller.abort();
       }
     }
 
