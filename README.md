@@ -79,17 +79,17 @@ The authoritative list, with titles, descriptions, and Zod input/output schemas,
 
 ## Companion skills
 
-Seven agent skills ship under  (tracked in-repo). They are auto-discovered by Claude Code, Kimi Code, and Codex when the repo is cloned:
+Seven agent skills ship under `.agents/skills/` (tracked in-repo). They are auto-discovered by Claude Code, Kimi Code, and Codex when the repo is cloned:
 
 | Skill | Purpose |
 | --- | --- |
-|  | Shell-level pCloud operations via the bundled  CLI |
-|  | Typed TypeScript/Bun client over the generated  module |
-|  | Full Zod-inferred input/output schema reference for all 37 tools |
-|  | Error diagnosis, provenance probing, blocked-endpoint rungs |
-|  | Trash and revision recovery fallback ladder |
-|  | Public link capability matrix and credential hygiene |
-|  | Bulk reorganization of files/folders between local disk and pCloud |
+| `pcloud-cli` | Shell-level pCloud operations via the bundled `pcloud-cli.js` CLI |
+| `pcloud-client` | Typed TypeScript/Bun client over the generated `pcloud-client.ts` module |
+| `pcloud-types` | Full Zod-inferred input/output schema reference for all 37 tools |
+| `pcloud-troubleshooting` | Error diagnosis, provenance probing, blocked-endpoint rungs |
+| `pcloud-recovery` | Trash and revision recovery fallback ladder |
+| `pcloud-sharing-security` | Public link capability matrix and credential hygiene |
+| `pcloud-reorganize` | Bulk reorganization of files/folders between local disk and pCloud |
 
 ## Development
 

@@ -1,0 +1,74 @@
+# Git
+.git/
+.gitignore
+
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+pcloud-cli.js
+pcloud.ts
+
+# Lockfiles (use npm ci in Docker, bun.lock for local dev)
+bun.lock
+package-lock.json
+
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# IDE & editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local MCP config
+.mcp.json
+.mcp.json.local
+.kimi-code/
+
+# Tower workspace
+.tower/
+
+# Reference repos (not part of build)
+references/
+
+# Docs (except README)
+docs/
+!README.md
+
+# Scripts (not needed in runtime image)
+scripts/
+
+# Generated client/types (gitignored, rebuilt on demand)
+generated/
+
+# Config (only mcporter.gen.json needed at build time)
+config/mcporter.json
+config/mcporter.gen.json
+
+# Agent skills (not needed in runtime)
+.agents/
+
+# Misc
+*.md
+!README.md
+LICENSE
+CHANGELOG.md
+SECURITY.md
+CONTRIBUTING.md

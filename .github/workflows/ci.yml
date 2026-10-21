@@ -41,9 +41,10 @@ jobs:
 
       - name: Tool-count drift check
         run: |
-          ACTUAL=$(grep -c "meta: [A-Za-z]*ToolMeta" src/core/tools/index.ts)
+          # Count tools array entries (lines with "meta: SomeToolMeta," inside the array)
+          ACTUAL=$(grep -cE 'meta: [A-Za-z]+ToolMeta,' src/core/tools/index.ts)
+          echo "Registered tools: $ACTUAL"
           # Check AGENTS.md and README.md don't hardcode a stale count
           if grep -nE '[0-9]+ (tools|typed tools)' AGENTS.md README.md 2>/dev/null | grep -v 'grep -c' ; then
             echo "::warning::AGENTS.md or README.md may hardcode a tool count. Use the audit command instead."
           fi
-          echo "Registered tools: $ACTUAL"

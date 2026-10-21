@@ -32,11 +32,11 @@ PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcpo
 PATH="$PWD/node_modules/.bin:$PATH" mcporter emit-ts pcloud --config config/mcporter.json --mode client --out generated/pcloud-client.ts
 ```
 
-A tracked pre-commit hook (`.githooks/pre-commit`, activated by `git config core.hooksPath .githooks`) regenerates `pcloud.ts` and `pcloud-cli.js` automatically; set `REGEN_ALL=1` to also rebuild the emit-ts outputs in `generated/`. The workspace-local skills at `.agents/skills/pcloud-{cli,client,types}/SKILL.md` are gitignored and regenerated per-developer; they are not present on a fresh clone.
+A tracked pre-commit hook (`.githooks/pre-commit`, activated by `git config core.hooksPath .githooks`) regenerates `pcloud.ts` and `pcloud-cli.js` automatically; set `REGEN_ALL=1` to also rebuild the emit-ts outputs in `generated/`. The tracked skills at `.agents/skills/pcloud-{cli,client,types,troubleshooting,recovery,sharing-security,reorganize}/SKILL.md` are part of the repo and ship with it.
 
 ## Dual-config watch
 
-Upstream (`openclaw/mcporter`, npm `mcporter` 0.15.0 = latest as of 2026-10-20): the runtime config schema accepts `mcpServers.*.command` as **string or string[] only**: the object form dies in `readConfigFile` (Zod `invalid_union` at `mcpServers.pcloud.command`), so `emit-ts`/`list` cannot read `config/mcporter.gen.json`. `generate-cli --server <file>` accepts **both** shapes, but from the string form it resolves `cwd` against the config dir and bakes an absolute host path into `pcloud.ts`; only the object form keeps `cwd "."` (script-relative → host-path-free). No upstream issue covers this split (the old "#506" reference is bogus, that number does not exist; numbering stops at #456), and there is no roadmap file (`VISION.md` is principles only).
+Upstream (`openclaw/mcporter`, npm `mcporter` 0.15.0 = latest as of 2026-10-20): the runtime config schema accepts `mcpServers.*.command` as **string or string[] only**: the object form dies in `readConfigFile` (Zod `invalid_union` at `mcpServers.pcloud.command`), so `emit-ts`/`list` cannot read `config/mcporter.gen.json`. `generate-cli --server <file>` accepts **both** shapes, but from the string form it resolves `cwd` against the config dir and bakes an absolute host path into `pcloud.ts`; only the object form keeps `cwd "."` (script-relative → host-path-free). No upstream issue covers this split, and there is no roadmap file (`VISION.md` is principles only).
 
 Verdict (2026-10-20): **maintain** the dual config, do not replace mcporter. Every alternative generator covers only the emit-ts half (mcp-typegen, mcp-client-gen, official SDK, hand-rolled emitter); the standalone commander-style CLI contract (`--key value`, `--raw`, root artifacts, bun bundle, pre-commit pin) is unique to mcporter. The hand-rolled emitter is the only true one-source end-state but its cost is rebuilding mcporter's CLI; revisit only if mcporter becomes unmaintained (0.15.0 shipped 2026-10-16, healthy). Collapse is half-unblocked already: `generate-cli` accepts the string-form config; the remaining blockers are (a) config schema accepting object-form `command`, or (b) `generate-cli` preserving relative `cwd` for string-form entries. Upstreaming a NEW issue with the two probes below is cheap and cheap to verify.
 
@@ -78,6 +78,6 @@ bun run scripts/live-mcp-e2e.ts   # requires PCLOUD_ACCESS_TOKEN; creates and cl
 - Update `README.md` and `AGENTS.md` when the tool surface or transport contract changes.
 - Update `docs/pcloud-notes.md` when a pCloud API quirk is confirmed or refuted.
 
-## Workspace-local skills (gitignored)
+## Agent skills (tracked)
 
-The `.agents/skills/pcloud-{cli,client,types}/SKILL.md` files are gitignored and are **not** present on a fresh clone. They are regenerated per-developer (via the mcporter workflow above or the local skill bootstrap); do not assume templates exist under `.agents/skills/`.
+The seven skills under `.agents/skills/pcloud-*/SKILL.md` are tracked in this repo and ship with it. Update them when the tool surface, error envelope, or workflow changes: `pcloud-cli`, `pcloud-client`, `pcloud-types`, `pcloud-troubleshooting`, `pcloud-recovery`, `pcloud-sharing-security`, `pcloud-reorganize`. Run a rot-check (no version pins, date pins, or stale counts) before committing changes to a SKILL.md body.

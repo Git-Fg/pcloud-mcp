@@ -121,10 +121,10 @@ describe('http transport security', () => {
     expect(validHost.status).toBe(421);
   });
 
-  it('rejects an uppercase Host (host comparison is exact; failing closed is intended)', async () => {
+  it('accepts case-insensitive Host header per RFC 7230', async () => {
     const port = await start();
     const res = await request(port, '/health', { host: `LOCALHOST:${port}` });
-    expect(res.status).toBe(421);
+    expect(res.status).toBe(200);
   });
 
   it('rejects a disallowed CORS origin with 403', async () => {

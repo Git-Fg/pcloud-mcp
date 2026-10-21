@@ -13,16 +13,15 @@ const LOOPBACK_ADDRESSES = ['127.0.0.1', 'localhost', '::1'] as const;
 const isLoopback = (address: string): boolean =>
   (LOOPBACK_ADDRESSES as readonly string[]).includes(address);
 
-export function createHttpApp(): express.Application {
-  const app = express();
+function normalizeHost(host: string): string {
+  // RFC 7230 §5.4: Host header is case-insensitive
+  return host.toLowerCase();
+}
 
-  // Security: bind to loopback by default
-  const BIND_ADDRESS = process.env.BIND_ADDRESS || '127.0.0.1';
+function getAllowedHosts(): string[] {
   const PORT = parseInt(process.env.PORT || '3000', 10);
-
-  // Host header allowlist (DNS rebinding defense)
-  const ALLOWED_HOSTS = process.env.ALLOWED_HOSTS
-    ? process.env.ALLOWED_HOSTS.split(',').map(h => h.trim()).filter(Boolean)
+  return process.env.ALLOWED_HOSTS
+    ? process.env.ALLOWED_HOSTS.split(',').map(h => h.trim().toLowerCase()).filter(Boolean)
     : [
         `localhost:${PORT}`,
         `127.0.0.1:${PORT}`,
@@ -31,13 +30,57 @@ export function createHttpApp(): express.Application {
         '127.0.0.1',
         '[::1]',
       ];
+}
 
+// Simple in-memory rate limiter (per IP, sliding window)
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 30; // 30 req/min per IP
+const HEALTH_RATE_LIMIT_MAX_REQUESTS = 60; // 60 req/min per IP
+const rateLimitStore = new Map<string, number[]>();
+
+function rateLimit(ip: string, maxRequests: number = RATE_LIMIT_MAX_REQUESTS): boolean {
+  const now = Date.now();
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const requests = rateLimitStore.get(ip) || [];
+  const recent = requests.filter(ts => ts > windowStart);
+  if (recent.length >= maxRequests) {
+    return false;
+  }
+  recent.push(now);
+  rateLimitStore.set(ip, recent);
+  return true;
+}
+
+export function createHttpApp(): express.Application {
+  const app = express();
+
+  // Security: bind to loopback by default
+  const BIND_ADDRESS = process.env.BIND_ADDRESS || '127.0.0.1';
+
+  // Host header allowlist (DNS rebinding defense) - computed per-request
   app.use((req: Request, res: Response, next: NextFunction) => {
-    const host = req.get('host') || '';
-    if (!ALLOWED_HOSTS.some(allowed => allowed === host)) {
+    const host = normalizeHost(req.get('host') || '');
+    const allowedHosts = getAllowedHosts().map(normalizeHost);
+    if (!allowedHosts.some(allowed => allowed === host)) {
       res.status(421).json({
         jsonrpc: '2.0',
         error: { code: -32603, message: 'Host not allowed' },
+        id: null
+      });
+      return;
+    }
+    next();
+  });
+
+  // Rate limiting middleware
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    const ip = req.ip || req.socket.remoteAddress || 'unknown';
+    const isHealth = req.path === '/health';
+    const maxRequests = isHealth ? HEALTH_RATE_LIMIT_MAX_REQUESTS : RATE_LIMIT_MAX_REQUESTS;
+    if (!rateLimit(ip, maxRequests)) {
+      res.status(429).json({
+        jsonrpc: '2.0',
+        error: { code: -32603, message: 'Too many requests' },
         id: null
       });
       return;

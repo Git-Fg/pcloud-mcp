@@ -23,7 +23,7 @@ A typed MCP server exposing the pCloud HTTP/JSON API methods as tools for any MC
 
 1. **Token provenance split, OAuth tokens rejected by trash endpoints**: `trash_list` and `trash_restore` return `1000 Log in required` for OAuth `access_token=` while legacy `/getauth` session tokens (`auth=`) work (confirmed for this account). `listrevisions`, `createuploadlink`, and `revertrevision` show the same `1000` symptom with an unconfirmed cause. No scope parameter exists to widen access. Source: [[docs/pcloud-notes]] (live-verified state) + rclone #3853.
 2. **Referrer restriction on streaming/download links**: `getfilepublink`, `getfilelink`, `getvideolink`, `getaudiolink` return URLs restricted to `pcloud.com` referrer; embedded previews in third-party pages will fail. Source: [pCloud getfilepublink](https://docs.pcloud.com/methods/getfilepublink/).
-3. **Regenerate with the repo-local mcporter, never the bare command**: bare `mcporter` resolves to the stale pnpm-global copy and clobbers artifacts. The tracked hook `.githooks/pre-commit` invokes `node_modules/.bin/mcporter` and regenerates from the tracked codegen definition `config/mcporter.gen.json`; do the same when regenerating by hand. Source: [[CONTRIBUTING.md]].
+3. **Regenerate with the repo-local mcporter, never the bare command**: bare `mcporter` resolves to a stale global copy (npm/pnpm/bun) and clobbers artifacts. The tracked hook `.githooks/pre-commit` invokes `node_modules/.bin/mcporter` and regenerates from the tracked codegen definition `config/mcporter.gen.json`; do the same when regenerating by hand. Source: [[CONTRIBUTING.md]].
 
 ## Best Practices
 

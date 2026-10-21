@@ -68,6 +68,12 @@ export async function readfileHandler(
     if (!response.ok || !response.body) {
       throw new Error(`readfile fetch failed: ${response.status} ${response.statusText}`);
     }
+    const contentType = response.headers.get('content-type') ?? '';
+    const isText = contentType.startsWith('text/') ||
+                   contentType.includes('json') ||
+                   contentType.includes('xml') ||
+                   contentType.includes('javascript') ||
+                   contentType.includes('ecmascript');
     reader = response.body.getReader();
     const chunks: Uint8Array[] = [];
     let received = 0;
@@ -92,6 +98,28 @@ export async function readfileHandler(
     for (const chunk of chunks) {
       bytes.set(chunk, offset);
       offset += chunk.length;
+    }
+    if (!isText) {
+      // Binary content: do not UTF-8 decode the body. Return the byte count
+      // and a content-type hint via structuredContent so callers can decide.
+      // The MCP `content` array is omitted because MCP text content cannot
+      // safely carry binary; callers needing exact bytes must fetch the URL.
+      const result = {
+        bytes: received,
+        truncated,
+        binary: true,
+        contentType,
+        note: 'Binary content; use getfilelink + direct download for exact bytes.',
+      };
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `[binary: ${contentType || 'unknown'}, ${received} bytes, truncated=${truncated}]`,
+          },
+        ],
+        structuredContent: result as z.infer<typeof ReadfileOutputSchema>,
+      };
     }
     const text = new TextDecoder('utf-8', { fatal: false }).decode(bytes);
     const result = { bytes: received, truncated, content: text };

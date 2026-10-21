@@ -7,12 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Dual mcporter config introduced: `config/mcporter.gen.json` (object-form, consumed by `generate-cli`) coexists with `config/mcporter.json` (string+args form, consumed by `emit-ts`). This is a workaround for an upstream schema limitation in mcporter 0.15.0; both files are tracked. See `CONTRIBUTING.md` § "Dual-config watch" for the collapse condition and the upstream-issue tracking plan.
+
 ### Added
 - Upgrade mcporter from ^0.7.3 to ^0.15.0, fixing all known defects in the generated client:
   - Zero-arg tools like userinfo() no longer throw 'Too many positional arguments'
   - Generated .d.ts is valid TypeScript with proper optional parameters
   - Hidden optional params are properly omitted by default but can be included with --include-optional flag
 - Regenerate all mcporter artifacts with the new version
+
+### Security
+
+- SSRF guard on `downloadfile`: URLs must use http/https scheme; private-IP ranges (10.x, 172.16-31.x, 192.168.x, 127.x, 169.254.x), `localhost`, and metadata endpoints are rejected.
+- Per-IP rate limiter on the HTTP transport (30 req/min on `/mcp`, 60 req/min on `/health`); sliding 1-minute window.
+- `PCLOUD_API_SERVER` validated against a known-endpoint allowlist (`eapi.pcloud.com`, `api.pcloud.com`, `api.europe.pcloud.com`, `api.us.pcloud.com`) at startup; unknown values throw on import.
+- Host-header allowlist computed per-request (was: at app build time) and compared case-insensitively (was: case-sensitively) per RFC 7230.
 
 ### Changed
 

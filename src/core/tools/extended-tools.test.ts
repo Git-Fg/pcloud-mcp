@@ -57,7 +57,7 @@ beforeEach(() => {
     const endpoint = new URL(url).pathname.replace(/^\//, '');
     calls.push(endpoint);
     if (endpoint.startsWith('DL')) {
-      return new Response('hello readfile', { status: 200 });
+      return new Response('hello readfile', { status: 200, headers: { 'Content-Type': 'text/plain' } });
     }
     if (endpoint === 'deletefolderrecursive') {
       return new Response(JSON.stringify(CANNED.deletefolderrecursive), { status: 200 });
@@ -67,7 +67,7 @@ beforeEach(() => {
       if (endpoint === 'getfilelink') {
         return new Response(JSON.stringify(CANNED.getfilelink), { status: 200 });
       }
-      return new Response('hello readfile', { status: 200 });
+      return new Response('hello readfile', { status: 200, headers: { 'Content-Type': 'text/plain' } });
     }
     if (endpoint === 'listrevisions') {
       return new Response(JSON.stringify(CANNED.listrevisions), { status: 200 });
