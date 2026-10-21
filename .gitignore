@@ -23,3 +23,4 @@ generated/pcloud-types.d.ts
 generated/pcloud-cli.js
 
 # package-lock.json is tracked for Docker (npm ci); bun.lock is tracked for bun installs.
+.tower/
