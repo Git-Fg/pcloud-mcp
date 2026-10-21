@@ -1,0 +1,46 @@
+name: Security report
+description: Report a security vulnerability in the pCloud MCP server
+title: "[security] "
+labels: [security]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Do not** file public security issues for undisclosed vulnerabilities.
+        Follow `SECURITY.md` (private disclosure email) instead.
+
+        Use this template only for issues that are already public, low-severity,
+        or for which coordinated disclosure has already happened.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Vulnerability description
+      placeholder: Brief description of the vulnerability and its impact
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+
+  - type: input
+    id: impact
+    attributes:
+      label: Impact
+      placeholder: Who is affected and what can an attacker do?
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment (mcporter version, transport, etc.)
+    validations:
+      required: false

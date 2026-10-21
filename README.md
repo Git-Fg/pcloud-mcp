@@ -23,7 +23,7 @@ bun run scripts/live-mcp-e2e.ts  # exercises the real pCloud API (needs the toke
   "mcpServers": {
     "pcloud": {
       "command": "sh",
-      "args": ["-c", "set -a && . ./.env && exec bun run src/index.ts"],
+      "args": ["-c", "if [ -f ./.env ]; then set -a; . ./.env; set +a; fi; exec bun run src/index.ts"],
       "cwd": "/path/to/pcloud_mcp"
     }
   }

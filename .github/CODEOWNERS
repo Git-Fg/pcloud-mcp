@@ -1,0 +1,6 @@
+# CODEOWNERS for pcloud-mcp
+# Default ownership: all files go to the maintainer.
+* @Git-Fg
+
+# SECURITY.md has its own notification channel; ownership stays with the
+# maintainer but the security disclosures email is documented in the file.

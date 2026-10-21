@@ -19,6 +19,18 @@ Please do **not** include live `PCLOUD_ACCESS_TOKEN` values, session tokens, or 
 - The HTTP transport refuses to bind a non-loopback address without `MCP_BEARER_TOKEN`.
 - The generated CLI artifacts (`pcloud.ts`, `pcloud-cli.js`) contain no secrets; they are safe to commit.
 
+## Token-in-query-parameter risk
+
+`PCLOUD_ACCESS_TOKEN` is sent as `?access_token=...` because the pCloud HTTP/JSON protocol requires it (there is no `Authorization: Bearer` alternative for this transport). This means the token WILL appear in:
+
+- pCloud's own access logs on the server side (operator concern, not yours)
+- Any reverse-proxy access logs that record full URLs (mitigate: strip the parameter at the proxy)
+- `Referer` headers if a pCloud-hosted page ever links out (browser-side risk; the `Referer-Restriction` gotcha above mitigates this by restricting where the *response* URL can be embedded)
+- Process listings (`ps aux`) if a child process inherits the URL — `pcloudClient.ts` always sends the token through the URL, never through stdin, headers, or argv
+- Any shell history or transcript that records the curl/fetch line. The diagnostic script `scripts/probe-provenance.sh` avoids this by reading the token from a stdin-config, not from argv
+
+Treat the token as a long-lived bearer: rotate it from the pCloud account dashboard if you suspect it leaked. pCloud OAuth tokens do not expire on their own.
+
 ## pCloud-specific security gotchas
 
 - **Token provenance split**: pCloud silently rejects OAuth `access_token=` tokens on the trash family (`trash_list`, `trash_restore`); only legacy `/getauth` session tokens (`auth=`) work there. `listrevisions`, `createuploadlink`, and `revertrevision` show the same `1000` symptom with an unconfirmed cause (see `docs/pcloud-notes.md`, which owns the live-verified state). No OAuth scope parameter exists to widen access. Source: [pCloud API docs](https://docs.pcloud.com/methods/trash_list/) + rclone #3853.

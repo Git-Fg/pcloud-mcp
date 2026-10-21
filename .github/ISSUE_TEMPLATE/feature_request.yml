@@ -1,0 +1,41 @@
+name: Feature request
+description: Suggest a new tool or improvement for the pCloud MCP server
+title: "[feature] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before filing: check `docs/pcloud-notes.md` and `docs/agent-surface.md`
+        for known limitations and design intent. Many "missing features" are
+        upstream pCloud API gaps rather than server gaps.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you solving?
+      placeholder: Describe the workflow that needs this feature
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      placeholder: |
+        - New tool name (kebab-case)
+        - Inputs (with types)
+        - Output shape
+        - Read-only / mutate / delete / upload classification
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: |
+        - Could an existing tool cover this?
+        - Is there a pCloud API limitation?
+    validations:
+      required: false
