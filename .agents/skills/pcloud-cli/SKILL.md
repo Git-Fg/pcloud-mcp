@@ -1,11 +1,11 @@
 ---
 name: pcloud-cli
-description: Operate pCloud storage from the shell via the generated Bun CLI bundled at pcloud-cli.js (repo root). Covers 37 tools: read (userinfo, listfolder, stat, getfilelink, readfile, listrevisions, resolve, diff, find, listpublinks, trash_list, checksumfile, getthumblink, getvideolink, getaudiolink, getapiserver, currentserver), mutate (createfolder, createfolderifnotexists, renamefile, renamefolder, trash_restore, getfilepublink, getfolderpublink, createuploadlink, showuploadlink, copyfile, copyfolder, revertrevision, downloadfile, extractarchive), delete (deletefile, deletefolder, deletefolderrecursive, deletepublink), and upload (uploadfile, uploadtolink). Stateless single calls; requires PCLOUD_ACCESS_TOKEN in the environment.
+description: Operate pCloud storage from the shell via the generated Bun CLI bundled at pcloud-cli.js (repo root). Stateless single calls; requires PCLOUD_ACCESS_TOKEN in the environment. Covers every tool registered in the live server, grouped as: read (userinfo, listfolder, stat, getfilelink, readfile, listrevisions, resolve, diff, find, listpublinks, trash_list, checksumfile, getthumblink, getvideolink, getaudiolink, getapiserver, currentserver), mutate (createfolder, createfolderifnotexists, renamefile, renamefolder, trash_restore, getfilepublink, getfolderpublink, createuploadlink, showuploadlink, copyfile, copyfolder, revertrevision, downloadfile, extractarchive), delete (deletefile, deletefolder, deletefolderrecursive, deletepublink), upload (uploadfile, uploadtolink). Enumerate the `tools` array in `src/core/tools/index.ts` for the live list.
 ---
 
 # pcloud-cli
 
-Generated CLI for the pCloud MCP server. Bundled by `mcporter generate-cli` and `bun build` into a self-contained Bun script with all 37 tools inlined.
+Generated CLI for the pCloud MCP server. Bundled by `mcporter generate-cli` and `bun build` into a self-contained Bun script with every registered tool inlined; the live list lives in the `tools` array in `src/core/tools/index.ts`, not hardcoded in this file.
 
 ## When to use
 

@@ -1,6 +1,6 @@
 ---
 name: pcloud-types
-description: Full TypeScript type surface of the pCloud MCP server: Zod-inferred input/output schemas for all 37 tools, the pCloud API response envelope, and the shared metadata/content type. Reference when writing new tools or clients that must match the server contract exactly.
+description: Full TypeScript type surface of the pCloud MCP server: Zod-inferred input/output schemas for every registered tool, the pCloud API response envelope, and the shared metadata/content type. Reference when writing new tools or clients that must match the server contract exactly. Enumerate the `tools` array in `src/core/tools/index.ts` for the live list.
 ---
 
 # pCloud types
@@ -11,11 +11,11 @@ Type declarations generated from the pCloud MCP server's live schema. Located at
 
 - Writing new code that consumes the pCloud MCP server or its client.
 - Checking exact field names / nullability of pCloud responses (metadata, content entries, quota).
-- Building custom tools that must compose with the existing 37.
+- Building custom tools that must compose with the existing tool surface.
 
 ## Key types
 
-- `PcloudTools` interface with one method per tool (currently 37).
+- `PcloudTools` interface with one method per registered tool (enumerate `src/core/tools/index.ts` for the live list).
 - Each method returns `Promise<object>`; the concrete shapes are defined by the Zod schemas in `src/core/tools/*.ts`.
 - `PcloudSuccess`: the JSON envelope (`{ result: 0, ... }`).
 - `PcloudMetadata`: folder/file metadata (timestamps are RFC-822 strings; `isfolder` is a real boolean; `contents` lives nested inside `metadata` for `listfolder`).

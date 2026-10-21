@@ -1,6 +1,6 @@
 ---
 name: pcloud-client
-description: Typed programmatic access to pCloud from TypeScript or Bun via the generated client module. 37 functions exported covering read (17), mutate (14), delete (4), and upload (2). Full inference over inputs/outputs. Stateless per-call; relies on the server's PCLOUD_ACCESS_TOKEN environment.
+description: Typed programmatic access to pCloud from TypeScript or Bun via the generated client module. Every tool registered in the live server is exported as a typed function (read, mutate, delete, upload categories). Full inference over inputs/outputs. Stateless per-call; relies on the server's PCLOUD_ACCESS_TOKEN environment. Enumerate the `tools` array in `src/core/tools/index.ts` for the live list.
 ---
 
 # pcloud-client
