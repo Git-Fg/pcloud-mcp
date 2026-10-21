@@ -31,7 +31,7 @@ All functions are async, one-shot (no client state to hold). The client proxies 
 ## Error envelope
 
 pCloud returns `{ result: <int> }` where non-zero is an error code. The client surfaces non-zero results as thrown errors with the numeric code attached. Common codes:
-- `1000`: auth required / no session. **Confirmed** for the trash family: pCloud silently rejects OAuth `access_token` on `trash_list`/`trash_restore` and accepts only a legacy `/getauth` session token sent as `auth=` (undocumented since 2020, rclone #3853). **Observed but unconfirmed** for `listrevisions`, `createuploadlink`, `revertrevision`: same 1000 symptom, cause not yet isolated (see `docs/pcloud-notes.md`); treat provenance as a hypothesis for those three. A file with no revision history also returns 1000 from `listrevisions`.
+- `1000`: auth required / no session. **Confirmed** for the trash family: pCloud silently rejects OAuth `access_token` on `trash_list`/`trash_restore` and accepts only a legacy `/getauth` session token sent as `auth=` (undocumented pCloud limitation, reproduced in rclone issue tracker). **Observed but unconfirmed** for `listrevisions`, `createuploadlink`, `revertrevision`: same 1000 symptom, cause not yet isolated (see `docs/pcloud-notes.md`); treat provenance as a hypothesis for those three. A file with no revision history also returns 1000 from `listrevisions`.
 - `1001`: `createfolder`/`createfolderifnotexists` need a path or (folderid+name) (their Required table).
 - `1002`: no full path or folderid provided.
 - `1004`: `deletefile`/`stat`/etc. called with no fileid and no path.

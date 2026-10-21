@@ -76,6 +76,21 @@ The authoritative list, with titles, descriptions, and Zod input/output schemas,
 - Trash: `trash_list`, `trash_restore`.
 - Misc: `userinfo`, `diff`, `extractarchive`, `getapiserver`, `currentserver`.
 
+
+## Companion skills
+
+Seven agent skills ship under  (tracked in-repo). They are auto-discovered by Claude Code, Kimi Code, and Codex when the repo is cloned:
+
+| Skill | Purpose |
+| --- | --- |
+|  | Shell-level pCloud operations via the bundled  CLI |
+|  | Typed TypeScript/Bun client over the generated  module |
+|  | Full Zod-inferred input/output schema reference for all 37 tools |
+|  | Error diagnosis, provenance probing, blocked-endpoint rungs |
+|  | Trash and revision recovery fallback ladder |
+|  | Public link capability matrix and credential hygiene |
+|  | Bulk reorganization of files/folders between local disk and pCloud |
+
 ## Development
 
 ```sh
