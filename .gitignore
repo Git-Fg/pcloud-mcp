@@ -4,7 +4,6 @@ dist/
 .env
 *.log
 .DS_Store
-.agents/
 references/
 
 # Machine-local MCP registrations (absolute paths, secrets-adjacent).
