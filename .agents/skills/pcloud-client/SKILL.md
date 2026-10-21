@@ -1,11 +1,11 @@
 ---
 name: pcloud-client
-description: Typed programmatic access to pCloud from TypeScript or Bun via the generated client module. Every tool registered in the live server is exported as a typed function (read, mutate, delete, upload categories). Full inference over inputs/outputs. Stateless per-call; relies on the server's PCLOUD_ACCESS_TOKEN environment. Enumerate the `tools` array in `src/core/tools/index.ts` for the live list.
+description: Typed programmatic access to pCloud from TypeScript or Bun via the generated client module. Every tool registered in the live server is exported as a typed function (read, mutate, delete, upload categories). Full inference over inputs/outputs. Stateless per-call; relies on the server's PCLOUD_ACCESS_TOKEN environment. Enumerate the `tools` array in `src/core/tools/index.ts` for the live list of exported function names.
 ---
 
 # pcloud-client
 
-Generated typed client for pCloud, emitted from the live MCP server schema by mcporter. Lives at `./generated/pcloud-client.ts` with types in `pcloud-types.d.ts`.
+Generated typed client for pCloud, emitted from the live MCP server schema by mcporter. Lives at `./generated/pcloud-client.ts` with types in `pcloud-types.d.ts`. The export list rotates as tools are added or removed; rely on `PcloudTools` (the generated interface) for the live bound, or `import * as pc from "./generated/pcloud-client"` to enumerate at runtime.
 
 ## When to use
 
@@ -15,47 +15,55 @@ Generated typed client for pCloud, emitted from the live MCP server schema by mc
 
 ## Usage
 
-```ts
-import { listfolder, readfile, resolve, find, copyfile, createuploadlink } from "./generated/pcloud-client";
+All functions are async, one-shot (no client state to hold). Every parameter is an object with field names that mirror the MCP server's Zod schema verbatim. The client proxies to the MCP server, which uses the server's `PCLOUD_ACCESS_TOKEN` environment variable.
 
-const root = await listfolder({ folderid: 0, limit: 10 });
-const text = await readfile({ fileid: 109711394696, maxBytes: 200 });
-const id = await resolve({ path: "/docs/spec.md" });
-const hits = await find({ query: "report", maxDepth: 3, maxResults: 50 });
-const dup = await copyfile({ fileid: 109713632742, tofolderid: 27174731411, toname: "copy.txt" });
-const link = await createuploadlink({ folderid: 0, comment: "drop files here" });
+```ts
+import * as pc from "./generated/pcloud-client";
+
+// Read categories
+const root    = await pc.folderListing({ folderid: 0, limit: 10 });
+const text    = await pc.fileRead({ fileid: 109711394696, maxBytes: 200 });
+const id      = await pc.pathResolve({ path: "/docs/spec.md" });
+const hits    = await pc.folderSearch({ query: "report", maxDepth: 3, maxResults: 50 });
+const dup     = await pc.fileCopy({ fileid: 109713632742, tofolderid: 27174731411, toname: "copy.txt" });
+const link    = await pc.uploadLinkCreate({ folderid: 0, comment: "drop files here" });
 ```
 
-All functions are async, one-shot (no client state to hold). The client proxies to the MCP server, which uses the server's `PCLOUD_ACCESS_TOKEN` environment variable.
+Names above are illustrative. Treat the **capabilities** (folder listing, file read, path resolve, folder search, file copy server-side, upload link create) as stable; the per-capability function name may change as the schema rotates. Use TypeScript's autocomplete on the `pc` namespace or the generated `PcloudTools` interface as the source of truth for current names.
 
 ## Error envelope
 
-pCloud returns `{ result: <int> }` where non-zero is an error code. The client surfaces non-zero results as thrown errors with the numeric code attached. Common codes:
-- `1000`: auth required / no session. **Confirmed** for the trash family: pCloud silently rejects OAuth `access_token` on `trash_list`/`trash_restore` and accepts only a legacy `/getauth` session token sent as `auth=` (undocumented pCloud limitation, reproduced in rclone issue tracker). **Observed but unconfirmed** for `listrevisions`, `createuploadlink`, `revertrevision`: same 1000 symptom, cause not yet isolated (see `docs/pcloud-notes.md`); treat provenance as a hypothesis for those three. A file with no revision history also returns 1000 from `listrevisions`.
-- `1001`: `createfolder`/`createfolderifnotexists` need a path or (folderid+name) (their Required table).
-- `1002`: no full path or folderid provided.
-- `1004`: `deletefile`/`stat`/etc. called with no fileid and no path.
-- `1005`: `getfilelink`/`getvideolink`/`getaudiolink` got an unknown `contenttype`.
-- `1013`: `diff`/`getfilepublink`/etc. could not parse the `after` datetime.
-- `1014`: `getthumblink` called on a file whose metadata is not a thumb-capable type.
-- `1015`: `getthumblink` `size` not in WxH form (16–2048 / 16–1024, divisible by 4 or 5).
-- `1016`: `copyfile` / `copyfolder` missing destination (topath/tofolderid/toname).
-- `1017`: invalid `folderid` supplied (a general id-validation code, not specific to trash).
-- `1018`: invalid `fileid` supplied (a general id-validation code, not specific to trash).
-- `1035`: `createuploadlink` missing `comment`.
-- `1037`: `renamefile`/`copyfile`/`copyfolder`/`renamefolder` called without a destination.
-- `1040`: `downloadfile` called without `url`.
-- `2000`: log in failed (used uniformly across methods).
-- `2001`: invalid file/folder name.
-- `2002`: path component does not exist.
-- `2003`: access denied / no permission.
-- `2004`: destination file or folder already exists (also `copyfile`/`copyfolder` with `noover=true`).
-- `2005`: directory does not exist.
-- `2009`: file not found (also `revertrevision` with an unknown `revisionid`).
-- `2027`: invalid or already deleted public link (deletepublink).
-- `2044`: `getvideolink`/`getaudiolink` called on a non-media file.
-- `4000`: too many login tries from this IP (per-IP lockout, no published duration).
-- `7004` / `7007` / `7008`: `uploadtolink` code: link expired / link reached its space limit / link reached its file limit.
+pCloud returns `{ result: <int> }` where non-zero is an error code. The client surfaces non-zero results as thrown errors with the numeric code attached. Codes are stable across the API; the tool name referenced in the legacy docs column is illustrative, not authoritative.
+
+| Code | Meaning | Common shape |
+|---|---|---|
+| `1000` | auth required / no session. **Confirmed** for the trash list + restore capabilities: pCloud silently rejects OAuth `access_token` and accepts only a legacy `/getauth` session token sent as `auth=` (undocumented pCloud limitation). **Observed but unconfirmed** for the revision-history, anonymous-upload-link, and revert-revision capabilities: same 1000 symptom, cause not yet isolated (see `docs/pcloud-notes.md`); treat provenance as a hypothesis. A file with no revision history also returns 1000 from the revision-history capability. |
+| `1001` | Folder creation needs a path or (folder id + name). |
+| `1002` | No full path or folder id provided. |
+| `1004` | Stat / delete-style call with neither id nor path. |
+| `1005` | Link-generation tool got an unknown `contenttype`. |
+| `1013` | Cursor / time-arg tools could not parse the `after` datetime. |
+| `1014` | Thumbnail tool called on a file whose metadata is not a thumb-capable type. |
+| `1015` | Thumbnail `size` not in `WIDTHxHEIGHT` form (limits stated in the schema `.describe()`). |
+| `1016` | Copy-style tool missing the destination side (`topath`/`tofolderid`/`toname`). |
+| `1017` | Invalid folder id (general id-validation code). |
+| `1018` | Invalid file id (general id-validation code). |
+| `1035` | Upload-link creation missing `comment`. |
+| `1037` | Move / copy-style tool called without a destination. |
+| `1040` | Server-side fetch tool called without `url`. |
+| `2000` | Log in failed (used uniformly across tools). |
+| `2001` | Invalid file/folder name. |
+| `2002` | Path component does not exist. |
+| `2003` | Access denied / no permission. |
+| `2004` | Destination already exists (also copy-style tool with `noover=true`). |
+| `2005` | Directory does not exist. |
+| `2009` | File not found (also revert-revision with unknown `revisionid`). |
+| `2027` | Invalid or already deleted public link. |
+| `2044` | Media-link-generation tool called on a non-media file. |
+| `4000` | Too many login tries from this IP (per-IP lockout, no published duration). |
+| `7004` / `7007` / `7008` | Upload-link code: link expired / reached its space limit / reached its file limit. |
+
+The client wraps every non-zero result in a `PcloudError` with the numeric code, the original pCloud error string, and a one-line hint pointing at the row above. Program against the `result` / `hint` fields, not pCloud's prose (which is not localized).
 
 ## Regeneration
 
