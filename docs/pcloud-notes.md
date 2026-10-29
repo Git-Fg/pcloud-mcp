@@ -18,6 +18,14 @@ All five stay in the surface in case a `PCLOUD_AUTH` session-token mode is wired
 - `getfilepublink`, `getfilelink`, `getvideolink`, `getaudiolink` are referrer-restricted to pcloud.com, the streaming/download URLs they return will not work when embedded in a third-party page.
 - `extractarchive` runs server-side for ~2s: a `finished=false` response carries a `progresshash` that only the returned `hostname` can poll (`extractarchiveprogress` is 1000-blocked for OAuth tokens and is not exposed as a tool).
 - `getthumblink` requires `size` with width 16–2048 and height 16–1024, both divisible by 4 or 5 (else error 1015); works only on files whose metadata has `thumb=true` (else 1014).
+- `listfolder` rejects a server-side `recursive=1` with `1101 Invalid request`. The walk has to happen client-side; the `listfolder` tool does it and tags each entry with its full path.
+- `uploadfile` **overwrites** an existing file when the same name is uploaded into the same folder: the response carries the same `fileid` and the previous content is gone. Pass `renameifexists=1` to get `name (2).ext` instead. Parallel uploads into one folder also race on name allocation, so uploads that share a destination folder must be serialised.
+
+## The `hash` field is not a checksum
+
+`listfolder` entries and `uploadfile` responses carry a numeric `hash`. It is a 64-bit internal content hash, **not** SHA-1: two files with identical content share the same `hash` regardless of name or folder, and different content yields a different value. It is not reproducible with xxhash, xxh3, FNV-1a, murmur3, siphash or CRC-32 at any seed, so it cannot be computed locally to dedup a local tree against the remote one.
+
+For byte-exact deduplication use `checksumfile`, which returns the real SHA-1 (SHA-256 on EU servers) per file. Note that `checksumfile` on a fileid returns the *current* content of that fileid, so it is only trustworthy when no concurrent upload targets the same folder.
 
 ## Regenerating API docs
 
