@@ -22,7 +22,18 @@ export const ListfolderInputSchema = z.object({
   recursive: z
     .boolean()
     .optional()
-    .describe('If true, list subfolders of the folder (pCloud performs the recursion)'),
+    .describe(
+      'If true, walk the whole subtree and return every entry, each tagged with its full path. ' +
+        'pCloud\'s listfolder rejects the server-side recursive flag (result 1101), so the walk ' +
+        'happens client-side.'
+    ),
+  maxdepth: z
+    .number()
+    .int()
+    .nonnegative()
+    .max(10)
+    .optional()
+    .describe('Depth cap for the recursive walk (0 = the listed folder only, default 3)'),
   showdeleted: z
     .boolean()
     .optional()
@@ -66,7 +77,8 @@ export const ListfolderToolMeta: ToolMeta<typeof ListfolderInputSchema> = {
   title: 'List pCloud Folder',
   description:
     'List the contents of a pCloud folder by folderid. pCloud does not paginate natively; ' +
-    'use limit/offset to slice client-side and avoid blowing the context window on large folders.',
+    'use limit/offset to slice client-side and avoid blowing the context window on large folders. ' +
+    'Set recursive to walk the whole subtree (client-side; pCloud rejects the server-side flag).',
   annotations: { readOnlyHint: true, idempotentHint: true, openWorldHint: false },
   inputSchema: ListfolderInputSchema,
 };
@@ -77,6 +89,7 @@ export async function listfolderHandler(
     nofiles?: boolean;
     noshares?: boolean;
     recursive?: boolean;
+    maxdepth?: number;
     showdeleted?: boolean;
     limit?: number;
     offset?: number;
@@ -90,7 +103,6 @@ export async function listfolderHandler(
   const params: Record<string, string | number> = { folderid: args.folderid };
   if (args.nofiles) params.nofiles = 1;
   if (args.noshares) params.noshares = 1;
-  if (args.recursive) params.recursive = 1;
   if (args.showdeleted) params.showdeleted = 1;
 
   const response = await client.json<{
@@ -99,6 +111,43 @@ export async function listfolderHandler(
   }>('listfolder', params);
 
   const all: PcloudContents = response.metadata.contents ?? [];
+
+  if (args.recursive) {
+    const maxdepth = args.maxdepth ?? 3;
+    const collected: PcloudContents = [];
+    type QueueItem = { folderid: number; path: string; depth: number };
+    const queue: QueueItem[] = [{ folderid: args.folderid, path: '', depth: 0 }];
+    while (queue.length > 0) {
+      const { folderid, path, depth } = queue.shift()!;
+      const listed =
+        depth === 0
+          ? all
+          : ((await client.json<{
+              result: 0;
+              metadata: z.infer<typeof PcloudMetadata>;
+            }>('listfolder', { folderid })).metadata.contents ?? []);
+      for (const item of listed) {
+        const itemPath = `${path}/${item.name}`;
+        collected.push({ ...item, path: itemPath } as PcloudContents[number]);
+        if (item.isfolder && item.folderid !== undefined && depth < maxdepth) {
+          queue.push({ folderid: item.folderid, path: itemPath, depth: depth + 1 });
+        }
+      }
+    }
+    const limit = args.limit ?? 200;
+    const offset = args.offset ?? 0;
+    const sliced = collected.slice(offset, offset + limit);
+    const payload = {
+      ...response,
+      contents: sliced,
+      page: { total: collected.length, limit, offset },
+    };
+    return {
+      content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
+      structuredContent: payload as z.infer<typeof ListfolderOutputSchema>,
+    };
+  }
+
   const limit = args.limit ?? 200;
   const offset = args.offset ?? 0;
   const sliced = all.slice(offset, offset + limit);
