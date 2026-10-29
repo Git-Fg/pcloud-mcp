@@ -115,24 +115,34 @@ export async function listfolderHandler(
   if (args.recursive) {
     const maxdepth = args.maxdepth ?? 3;
     const collected: PcloudContents = [];
-    type QueueItem = { folderid: number; path: string; depth: number };
-    const queue: QueueItem[] = [{ folderid: args.folderid, path: '', depth: 0 }];
-    while (queue.length > 0) {
-      const { folderid, path, depth } = queue.shift()!;
-      const listed =
-        depth === 0
-          ? all
-          : ((await client.json<{
+    type QueueItem = { folderid: number; path: string };
+    let level: QueueItem[] = [{ folderid: args.folderid, path: '' }];
+    for (let depth = 0; depth <= maxdepth && level.length > 0; depth += 1) {
+      const listings = await Promise.all(
+        level.map(async ({ folderid, path }) => {
+          if (depth === 0) {
+            return all.map((item) => ({ item, path }));
+          }
+          const listed = (
+            await client.json<{
               result: 0;
               metadata: z.infer<typeof PcloudMetadata>;
-            }>('listfolder', { folderid })).metadata.contents ?? []);
-      for (const item of listed) {
-        const itemPath = `${path}/${item.name}`;
-        collected.push({ ...item, path: itemPath } as PcloudContents[number]);
-        if (item.isfolder && item.folderid !== undefined && depth < maxdepth) {
-          queue.push({ folderid: item.folderid, path: itemPath, depth: depth + 1 });
+            }>('listfolder', { folderid })
+          ).metadata.contents ?? [];
+          return listed.map((item) => ({ item, path }));
+        })
+      );
+      const next: QueueItem[] = [];
+      for (const entries of listings) {
+        for (const { item, path } of entries) {
+          const itemPath = `${path}/${item.name}`;
+          collected.push({ ...item, path: itemPath } as PcloudContents[number]);
+          if (item.isfolder && item.folderid !== undefined && depth < maxdepth) {
+            next.push({ folderid: item.folderid, path: itemPath });
+          }
         }
       }
+      level = next;
     }
     const limit = args.limit ?? 200;
     const offset = args.offset ?? 0;
