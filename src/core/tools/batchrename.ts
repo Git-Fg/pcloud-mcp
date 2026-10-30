@@ -3,11 +3,16 @@ import { PcloudHttpClient } from '../http/pcloudClient.js';
 import { PcloudSuccess } from './schemas.js';
 import { ToolMeta } from './tool-meta.js';
 
-const RenameOpSchema = z.object({
-  fileid: z.number().int().positive().describe('File to rename/move'),
-  toname: z.string().min(1).optional().describe('Destination filename (extension included)'),
-  tofolderid: z.number().int().nonnegative().optional().describe('Destination folder ID'),
-});
+const RenameOpSchema = z
+  .object({
+    fileid: z.number().int().positive().optional().describe('File to rename/move'),
+    folderid: z.number().int().nonnegative().optional().describe('Folder to rename/move'),
+    toname: z.string().min(1).optional().describe('Destination name (extension included for files)'),
+    tofolderid: z.number().int().nonnegative().optional().describe('Destination parent folder ID'),
+  })
+  .refine((v) => (v.fileid === undefined) !== (v.folderid === undefined), {
+    message: 'Provide exactly one of fileid or folderid for the source',
+  });
 
 export const BatchrenameInputSchema = z.object({
   operations: z
@@ -23,11 +28,12 @@ export const BatchrenameInputSchema = z.object({
 });
 
 const BatchrenameResultSchema = z.object({
-  fileid: z.number().int().positive(),
+  fileid: z.number().int().positive().optional(),
+  folderid: z.number().int().nonnegative().optional(),
   ok: z.boolean(),
   toname: z.string().optional(),
   tofolderid: z.number().int().nonnegative().optional(),
-  newfileid: z.number().int().positive().optional(),
+  newid: z.number().int().nonnegative().optional(),
   error: z.string().optional(),
 });
 
@@ -40,17 +46,21 @@ export const BatchrenameOutputSchema = PcloudSuccess.extend({
 type BatchrenameResult = z.infer<typeof BatchrenameResultSchema>;
 
 export const BatchrenameToolMeta: ToolMeta<typeof BatchrenameInputSchema> = {
-  title: 'Batch Rename / Move Files',
+  title: 'Batch Rename / Move Files and Folders',
   description:
-    'Apply many rename/move operations in one call. Each operation targets a file by fileid and ' +
-    'optionally sets a new name (toname) and/or a new parent folder (tofolderid). Use dryrun to ' +
-    'preview the plan without mutating anything. Individual failures do not abort the batch.',
+    'Apply many rename/move operations in one call. Each operation targets a file (fileid) or a ' +
+    'folder (folderid) and optionally sets a new name (toname) and/or a new parent folder ' +
+    '(tofolderid). Use dryrun to preview the plan without mutating anything. Individual failures ' +
+    'do not abort the batch.',
   annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
   inputSchema: BatchrenameInputSchema,
 };
 
 export async function batchrenameHandler(
-  args: { operations: Array<{ fileid: number; toname?: string; tofolderid?: number }>; dryrun?: boolean },
+  args: {
+    operations: Array<{ fileid?: number; folderid?: number; toname?: string; tofolderid?: number }>;
+    dryrun?: boolean;
+  },
   _ctx: unknown
 ): Promise<{
   content: { type: "text"; text: string }[];
@@ -61,9 +71,13 @@ export async function batchrenameHandler(
   const results: BatchrenameResult[] = [];
 
   for (const op of args.operations) {
+    const isFolder = op.folderid !== undefined;
+    const endpoint = isFolder ? 'renamefolder' : 'renamefile';
+
     if (args.dryrun) {
       results.push({
         fileid: op.fileid,
+        folderid: op.folderid,
         ok: true,
         toname: op.toname,
         tofolderid: op.tofolderid,
@@ -71,25 +85,29 @@ export async function batchrenameHandler(
       continue;
     }
 
-    const params: Record<string, string | number> = { fileid: op.fileid };
+    const params: Record<string, string | number> = {};
+    if (op.fileid !== undefined) params.fileid = op.fileid;
+    else params.folderid = op.folderid!;
     if (op.toname !== undefined) params.toname = op.toname;
     if (op.tofolderid !== undefined) params.tofolderid = op.tofolderid;
 
     try {
       const response = await client.json<{
         result: 0;
-        metadata: { fileid?: number; name?: string; path?: string };
-      }>('renamefile', params);
+        metadata: { fileid?: number; folderid?: number };
+      }>(endpoint, params);
       results.push({
         fileid: op.fileid,
+        folderid: op.folderid,
         ok: true,
         toname: op.toname,
         tofolderid: op.tofolderid,
-        newfileid: response.metadata.fileid,
+        newid: response.metadata.fileid ?? response.metadata.folderid,
       });
     } catch (err) {
       results.push({
         fileid: op.fileid,
+        folderid: op.folderid,
         ok: false,
         toname: op.toname,
         tofolderid: op.tofolderid,

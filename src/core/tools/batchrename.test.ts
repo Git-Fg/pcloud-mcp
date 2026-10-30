@@ -45,13 +45,13 @@ describe('batchrename (mocked pCloud)', () => {
       result: number;
       applied: number;
       failed: number;
-      results: Array<{ fileid: number; ok: boolean; newfileid?: number }>;
+      results: Array<{ fileid: number; ok: boolean; newid?: number }>;
     };
     expect(body.result).toBe(0);
     expect(body.applied).toBe(2);
     expect(body.failed).toBe(0);
-    expect(body.results[0].newfileid).toBe(11);
-    expect(body.results[1].newfileid).toBe(12);
+    expect(body.results[0].newid).toBe(11);
+    expect(body.results[1].newid).toBe(12);
     expect(r.content[0].text).toContain('Applied 2');
   });
 
