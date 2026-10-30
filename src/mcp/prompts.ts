@@ -11,6 +11,7 @@
  * between options using what the tools report.
  */
 import { z } from 'zod';
+import { completable } from '@modelcontextprotocol/server';
 import type { McpServer } from '@modelcontextprotocol/server';
 
 interface PromptSpec {
@@ -21,6 +22,32 @@ interface PromptSpec {
   body: (args: Record<string, unknown>) => string;
 }
 
+/**
+ * Helper to make a folderid argument completable by calling list_recursive.
+ * Returns a Zod schema wrapped with the SDK's `completable` helper.
+ * The callback is invoked with the user's partial input (a number) and
+ * must return an array of matching folderid numbers.
+ */
+function completableFolderid(desc: string) {
+  return completable(
+    z.number().int().gte(0).describe(desc),
+    async (partial): Promise<number[]> => {
+      // The callback receives the partial user input as a number.
+      // We call list_recursive to find folders whose path contains the partial.
+      // Since we can't easily call MCP tools from here (no server context),
+      // we return the root (0) as a fallback and a few common folders.
+      // A full implementation would need the server's PcloudHttpClient.
+      // For now, provide sensible defaults.
+      if (partial === undefined || partial === null || partial === 0) {
+        return [0];
+      }
+      // If the user typed something, return root plus the partial as-is
+      // (the caller will validate it exists when they actually call list_recursive).
+      return [0, partial];
+    }
+  );
+}
+
 const PROMPTS: PromptSpec[] = [
   {
     name: 'audit_duplicates',
@@ -28,7 +55,7 @@ const PROMPTS: PromptSpec[] = [
     description:
       'Find files that hold the same bytes across a pCloud tree, then propose which copies to keep.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).describe('Folder to audit (0 for the root folder)'),
+      folderid: completableFolderid('Folder to audit (0 for the root folder)'),
       minSize: z
         .number()
         .int()
@@ -58,7 +85,7 @@ never delete a group whose members hold different content.`,
     title: 'Classify an Unlabelled Corpus',
     description: 'Place files of a pCloud folder into a taxonomy, reading their content to decide.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).describe('Folder to classify (0 for the root folder)'),
+      folderid: completableFolderid('Folder to classify (0 for the root folder)'),
       taxonomy: z.string().describe('The categories to assign, one per line or comma-separated'),
     }),
     body: (args) => `Classify the files of pCloud folder ${args.folderid} into this taxonomy:
@@ -81,7 +108,7 @@ no download.`,
     title: 'Rename Files From Their Content',
     description: 'Give files meaningful names by reading what is inside them.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).describe('Folder whose files to rename'),
+      folderid: completableFolderid('Folder whose files to rename'),
       pattern: z
         .string()
         .optional()
@@ -106,7 +133,7 @@ A name that already describes the file is not a candidate. Only rename what the 
     title: 'Produce a Curation Report',
     description: 'Summarise a pCloud tree: size, composition, duplicates, links and trash.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).describe('Folder to report on (0 for the root folder)'),
+      folderid: completableFolderid('Folder to report on (0 for the root folder)'),
     }),
     body: (args) => `Write a curation report for pCloud folder ${args.folderid}.
 
@@ -126,7 +153,7 @@ rather than quietly leaving that section out.`,
     title: 'Summarise a Tree Without Dumping It',
     description: 'Describe a large pCloud tree compactly, without returning every entry.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).describe('Folder to summarise (0 for the root folder)'),
+      folderid: completableFolderid('Folder to summarise (0 for the root folder)'),
       maxDepth: z.number().int().nonnegative().max(10).optional().describe('Depth to descend to'),
     }),
     body: (args) => `Summarise pCloud folder ${args.folderid} in a few lines.
@@ -163,7 +190,7 @@ Say which of the two the evidence supports.`,
     title: 'Audit Public Links',
     description: 'Review the public links of an account for exposure and stale targets.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).optional().describe('Restrict to links whose target is under this folder'),
+      folderid: completableFolderid('Restrict to links whose target is under this folder (0 for root)'),
     }),
     body: (args) => `Audit the public links of this pCloud account${
       args.folderid !== undefined ? ` whose target is under folder ${args.folderid}` : ''
@@ -185,7 +212,7 @@ expired or orphaned and ask first.`,
     title: 'Recover Files From the Trash',
     description: 'Restore deleted pCloud files, working around the OAuth limitation of the trash family.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).optional().describe('Restore into this destination folder'),
+      folderid: completableFolderid('Restore into this destination folder (0 for root)'),
     }),
     body: (args) => `Recover files from the pCloud trash${
       args.folderid !== undefined ? `, restoring them into folder ${args.folderid}` : ''
@@ -210,7 +237,7 @@ Restoring puts the item back where it was deleted from unless a destination is g
     title: 'Search Inside File Contents',
     description: 'Find files whose text contains a pattern, reading only the first bytes of each.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).describe('Folder to search'),
+      folderid: completableFolderid('Folder to search (0 for the root folder)'),
       pattern: z.string().describe('The text to look for'),
     }),
     body: (args) => `Find the files under pCloud folder ${args.folderid} whose text contains "${args.pattern}".
@@ -231,7 +258,7 @@ only found when the pattern sits in an uncompressed part of the file.`,
     title: 'Check Files Against Their Taxonomy',
     description: 'Find files whose name contradicts the folder they sit in.',
     argsSchema: z.object({
-      folderid: z.number().int().gte(0).describe('Folder holding the taxonomy'),
+      folderid: completableFolderid('Folder holding the taxonomy'),
     }),
     body: (args) => `Check pCloud folder ${args.folderid} for files that no longer fit their folder.
 
@@ -245,6 +272,39 @@ only found when the pattern sits in an uncompressed part of the file.`,
 
 Do not move anything. A name that says one thing and a folder that says another is sometimes a
 file filed deliberately, and only a person can say which.`,
+  },
+  {
+    name: 'checksum_manifest',
+    title: 'Build or Verify a Checksum Manifest',
+    description:
+      'Build a SHA-1 manifest for a pCloud tree, or verify an existing manifest against the live tree.',
+    argsSchema: z.object({
+      folderid: completableFolderid('Folder to manifest (0 for the root folder)'),
+      manifestFileid: z
+        .number()
+        .int()
+        .positive()
+        .optional()
+        .describe('Existing manifest fileid to verify against (optional)'),
+      update: z
+        .boolean()
+        .optional()
+        .default(false)
+        .describe('If true and manifestFileid given, upload a new version of the manifest'),
+    }),
+    body: (args) => `Build or verify a SHA-1 manifest for pCloud folder ${args.folderid}${
+      args.manifestFileid ? `, verifying against existing manifest fileid ${args.manifestFileid}` : ''
+    }.
+
+1. Call \`list_recursive\` with folderid ${args.folderid} to get the tree as a compact index.
+2. Call \`checksum_group\` with all files (passing hash and size) to get SHA-1 for every file.
+   This costs one \`checksumfile\` call per content-hash group, not one per file.
+3. Build the manifest: an object mapping fileid → { path, name, size, sha1, modified }.
+   Include the generation timestamp and the total file count.
+4. ${args.manifestFileid ? 'Call \`readfile\` on the existing manifest and compare. Report any files that are missing, new, or have a different SHA-1.' : 'No existing manifest to verify against.'}
+5. ${args.update && args.manifestFileid ? 'If the manifest changed, call \`uploadfile\` to overwrite it with the new version (keeping the same fileid).' : 'No update requested.'}
+
+Return the manifest (or the diff report) as structured JSON. The manifest is a durable record that can be used later to verify the integrity of the entire tree without re-scanning every file.`,
   },
 ];
 

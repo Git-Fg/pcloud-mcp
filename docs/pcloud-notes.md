@@ -27,6 +27,19 @@ All five stay in the surface in case a `PCLOUD_AUTH` session-token mode is wired
 
 For byte-exact deduplication use `checksumfile`, which returns the real SHA-1 (SHA-256 on EU servers) per file. Note that `checksumfile` on a fileid returns the *current* content of that fileid, so it is only trustworthy when no concurrent upload targets the same folder.
 
+## The 64-bit `hash` exceeds JavaScript's safe integer range
+
+The pCloud `hash` field is a 64-bit unsigned integer. JSON serialises it as a double-precision float, which can only represent integers exactly up to 2^53 − 1 (≈ 9 × 10^15). pCloud's hash values are often larger (e.g. `2902597194296732000` ≈ 2^61), so the value is rounded on the way in.
+
+**This is safe for grouping** because the rounding is deterministic: two files with identical content receive the *same* rounded double, so they still land in the same group. The collision probability of the rounded hash is still ≈ 2⁻⁵³, which is negligible for corpus curation. The definitive proof of identity is the SHA-1 from `checksumfile`, which the server computes exactly.
+
+When working with the hash in TypeScript:
+- Use `number` (not `bigint`) in schemas — Zod's `z.number()` accepts the rounded double.
+- Do **not** compare hashes for exact equality in business logic; treat them as group keys only.
+- The definitive identity proof is always `checksumfile` (SHA-1).
+
+This behaviour was discovered during live testing of `checksum_group`; the mocks did not reproduce it because the test fixtures used small hash values.
+
 ## Regenerating API docs
 
 The per-method pCloud docs used to live under `references/pcloud-docs/` (one markdown file per page). They are no longer vendored; regenerate on demand with `python3 scripts/fetch_pcloud_docs.py <out-dir>` (see the script for usage).

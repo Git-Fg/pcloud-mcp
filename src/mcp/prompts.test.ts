@@ -40,6 +40,7 @@ describe('pCloud prompts', () => {
     expect(names).toContain('recover_from_trash');
     expect(names).toContain('search_contents');
     expect(names).toContain('taxonomy_drift_check');
+    expect(names).toContain('checksum_manifest');
   });
 
   it('gives every prompt a title and a description', async () => {
