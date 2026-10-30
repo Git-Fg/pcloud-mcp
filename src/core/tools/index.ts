@@ -37,6 +37,7 @@ import { getaudiolinkHandler, GetaudiolinkToolMeta } from './getaudiolink.js';
 import { getapiserverHandler, GetapiserverToolMeta } from './getapiserver.js';
 import { currentserverHandler, CurrentserverToolMeta } from './currentserver.js';
 import { extractarchiveHandler, ExtractarchiveToolMeta } from './extractarchive.js';
+import { batchrenameHandler, BatchrenameToolMeta } from './batchrename.js';
 
 const OUTPUT_SCHEMA = z.object({ result: z.literal(0) }).passthrough();
 const OUTPUT_SCHEMA_PASSTHROUGH = z.object({}).passthrough();
@@ -80,6 +81,7 @@ export function registerPcloudTools(server: McpServer): void {
     { name: 'currentserver', meta: CurrentserverToolMeta, handler: currentserverHandler, outputSchema: OUTPUT_SCHEMA },
     { name: 'extractarchive', meta: ExtractarchiveToolMeta, handler: extractarchiveHandler, outputSchema: OUTPUT_SCHEMA },
     { name: 'deletefolderrecursive', meta: DeletefolderrecursiveToolMeta, handler: deletefolderrecursiveHandler, outputSchema: OUTPUT_SCHEMA },
+    { name: 'batchrename', meta: BatchrenameToolMeta, handler: batchrenameHandler, outputSchema: OUTPUT_SCHEMA_PASSTHROUGH },
   ];
 
   for (const tool of tools) {
