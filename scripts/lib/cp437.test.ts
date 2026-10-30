@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test';
-import { repairMojibake, encodeCp437 } from './cp437.js';
+import { repairMojibake, repairUtf8Mojibake, encodeCp437 } from './cp437.js';
 
 describe('cp437 mojibake repair', () => {
   it('repairs a name mangled through CP437', () => {
@@ -31,5 +31,20 @@ describe('cp437 mojibake repair', () => {
 
   it('returns null for a name with an unmappable character', () => {
     expect(encodeCp437('✅')).toBeNull();
+  });
+});
+
+describe('utf-8 mojibake repair', () => {
+  it('repairs PDF metadata decoded as latin-1', () => {
+    expect(repairUtf8Mojibake('Commentaire ordo 1 termin' + 'A\u0303\u00a9' + '-2 2')).toBe(
+      'Commentaire ordo 1 terminé-2 2'
+    );
+    expect(repairUtf8Mojibake('r\u00c3\u00a9visions')).toBe('révisions');
+  });
+
+  it('leaves an already-correct title untouched', () => {
+    expect(repairUtf8Mojibake('Chimie thérapeutique')).toBe('Chimie thérapeutique');
+    expect(repairUtf8Mojibake('Année 2017-2018')).toBe('Année 2017-2018');
+    expect(repairUtf8Mojibake('Staphylococcus aureus')).toBe('Staphylococcus aureus');
   });
 });

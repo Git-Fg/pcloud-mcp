@@ -16,6 +16,7 @@ import { mkdtemp, rm, writeFile as write } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PcloudHttpClient } from '../src/core/http/pcloudClient.js';
+import { isExtensionless, isGenericName } from './lib/naming.js';
 
 const exec = promisify(execFile);
 /** `word/document.xml` of a slide-heavy deck easily exceeds the 1 MB default. */
@@ -52,6 +53,8 @@ const outJson = process.argv[3] ?? '/tmp/pharmacie-identified.json';
 const onlyFormats = process.argv[4]
   ? new Set(process.argv[4].split(',').map((s) => s.trim()))
   : null;
+/** Optional fourth argument: which files to inspect. */
+const selection = (process.argv[5] ?? 'extensionless') as 'extensionless' | 'generic';
 
 const roots = JSON.parse(await readFile(inventoryPath, 'utf8')) as InvNode[];
 const client = new PcloudHttpClient();
@@ -65,7 +68,8 @@ function walk(nodes: InvNode[]): void {
 }
 walk(roots);
 
-const targets = files.filter((f) => !f.name.includes('.'));
+const targets =
+  selection === 'generic' ? files.filter((f) => isGenericName(f.name)) : files.filter((f) => isExtensionless(f.name));
 
 const MAGIC: Array<[string, string, string]> = [
   ['%PDF', 'pdf', '.pdf'],
@@ -150,8 +154,10 @@ async function download(fileid: number, dest: string): Promise<void> {
   await write(dest, Buffer.from(await res.arrayBuffer()));
 }
 
-function detectFormat(head: Buffer): { format: string; extension: string } {
+function detectFormat(head: Buffer, name: string): { format: string; extension: string } {
   if (head.length === 0) return { format: 'empty', extension: '.empty' };
+  // A .DS_Store starts with the same four bytes as an iWork package.
+  if (name === '.DS_Store') return { format: 'dsstore', extension: '.dsstore' };
   for (const [sig, name, ext] of MAGIC) {
     if (head.subarray(0, sig.length).equals(Buffer.from(sig, 'latin1'))) {
       return { format: name, extension: ext };
@@ -273,7 +279,7 @@ for (const [i, file] of targets.entries()) {
   try {
     const url = await signedUrl(file.fileid!);
     const head = await fetchHead(url);
-    const detected = detectFormat(head);
+    const detected = detectFormat(head, file.name);
 
     let format = detected.format;
     let extension = detected.extension;
@@ -303,7 +309,7 @@ for (const [i, file] of targets.entries()) {
             .split('\n')
             .map((l) => l.trim())
             .find((l) => l.length > 12 && /[A-Za-zÀ-ÿ]{4}/.test(l));
-          if (line) title = line.slice(0, 120);
+          if (line) title = line.slice(0, 120).replace(/[:;]\s*$/, '').trim();
         } catch {
           // no text layer
         }

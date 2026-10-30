@@ -22,6 +22,12 @@ const concurrency = Number(process.argv[3] ?? 4);
 const plan = JSON.parse(await readFile(planPath, 'utf8')) as PurgePlan;
 const client = new PcloudHttpClient();
 
+// A plan may cover only renames or only deletions.
+const renameDirs = plan.renameDirs ?? [];
+const renameFiles = plan.renameFiles ?? [];
+const deleteDirs = plan.deleteDirs ?? [];
+const deleteFiles = plan.deleteFiles ?? [];
+
 let applied = 0;
 let failed = 0;
 const failures: Array<{ id: number; path: string; error: string }> = [];
@@ -54,25 +60,25 @@ async function run<T extends { id: number; path: string }>(
 }
 
 await run(
-  plan.renameDirs,
+  renameDirs,
   'renamefolder',
   (d) => ({ folderid: d.folderid, toname: d.toname }),
   'renamed dirs'
 );
 await run(
-  plan.renameFiles,
+  renameFiles,
   'renamefile',
   (f) => ({ fileid: f.fileid, toname: f.toname }),
   'renamed files'
 );
 await run(
-  plan.deleteDirs,
+  deleteDirs,
   'deletefolderrecursive',
   (d) => ({ folderid: d.folderid }),
   'deleted dirs'
 );
 await run(
-  plan.deleteFiles,
+  deleteFiles,
   'deletefile',
   (f) => ({ fileid: f.fileid }),
   'deleted files'

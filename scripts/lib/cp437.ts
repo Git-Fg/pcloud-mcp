@@ -1,10 +1,13 @@
 /**
- * CP437 codec, used to repair mojibake in legacy pCloud file names.
+ * CP437 codec and mojibake repair for legacy pCloud names and titles.
  *
  * A batch of course files was uploaded with their names decoded through
  * CP437 instead of UTF-8: the UTF-8 bytes for "é" (0xC3 0xA9) were read as
  * the two CP437 characters "├" and "©". The damage is reversible because
  * CP437 is a single-byte encoding.
+ *
+ * Document titles carry a second flavour: PDF metadata read through latin-1,
+ * where "é" comes out as the two characters "Ã©".
  *
  * Node has no CP437 codec, so the high half is embedded below as the
  * characters for bytes 0x80..0xFF.
@@ -72,5 +75,36 @@ export function repairMojibake(input: string): string | null {
   for (let i = 0; i < bytes.length; i += 1) {
     if (reencoded[i] !== bytes[i]) return null;
   }
+  return decoded.normalize('NFC');
+}
+
+/**
+ * Counts the lead-plus-continuation pairs that UTF-8 bytes read as latin-1
+ * leave in text: "Ã©" is a 0xC3 lead byte followed by a 0xA9 continuation
+ * byte. A lone accented letter has no pair, so legitimate French survives.
+ */
+function mangleCount(text: string): number {
+  return (text.match(/[\u00c0-\u00df][\u0080-\u00bf]/g) ?? []).length;
+}
+
+/**
+ * Repairs text whose UTF-8 bytes were decoded as latin-1, the flavour PDF
+ * metadata produces: "Ã©" is the two latin-1 characters for the UTF-8 bytes
+ * of "é". Reading the text back as latin-1 bytes and decoding them as UTF-8
+ * undoes it; the result is only kept when it really has fewer mangled
+ * characters, so legitimate accents survive untouched.
+ */
+export function repairUtf8Mojibake(input: string): string {
+  // PDF titles arrive decomposed ("A" + combining tilde); fold first so the
+  // mangled characters land in the range the repair recognises.
+  const text = input.normalize('NFC');
+  if (!mangleCount(text)) return text;
+  let decoded: string;
+  try {
+    decoded = UTF8_DECODER.decode(Buffer.from(text, 'latin1'));
+  } catch {
+    return text;
+  }
+  if (decoded === text || mangleCount(decoded) >= mangleCount(text)) return text;
   return decoded.normalize('NFC');
 }

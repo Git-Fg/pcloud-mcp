@@ -14,6 +14,17 @@
  * Usage: bun run scripts/pharmacie-content-rename-plan.ts [identified] [out]
  */
 import { readFile, writeFile } from 'node:fs/promises';
+import {
+  DOC_TYPES,
+  capitalize,
+  cleanTitle,
+  dropRedundantUePrefix,
+  fileName,
+  isInformative,
+  normalizeLigatures,
+  sanitize,
+} from './lib/naming.js';
+import { repairUtf8Mojibake } from './lib/cp437.js';
 
 interface Identified {
   fileid: number;
@@ -55,44 +66,11 @@ interface Plan {
 }
 
 /** Folders whose name says what kind of material they hold. */
-const DOC_TYPES = [
-  'Annales',
-  'Cours',
-  'ED',
-  'Fiches',
-  'Autres',
-  'Roneos',
-  'Images',
-  'Projets',
-  'Transcriptions',
-  'Videos',
-  'TD',
-  'Supports',
-];
 
 /**
  * Titles that name the format or the tool rather than the content. A file
  * called "FACULTÉ" says nothing about the 21 pages behind it.
  */
-const TITLE_NOISE: RegExp[] = [
-  /^FACULT[ÉE]$/i,
-  /^Documents? scann[ée]s$/i,
-  /^SKM_/i,
-  /^\d+e Ann[ée]e de Pharmacie$/i,
-  /^Documents?$/i,
-  /^FICHES?$/i,
-  /^Photocop/i,
-  /^Slide \d+$/i,
-  /^T[ée]moin$/i,
-  /^Subject:?$/i,
-  /^PowerPoint Presentation$/i,
-  /^Pr[ée]sentation PowerPoint$/i,
-  /^HTMLTITLE$/i,
-  /^Microsoft /i,
-  /^Titre\b/i,
-  /^D[ée]but\b/i,
-];
-
 /** Formats whose name needs a qualifier to be understandable. */
 const FORMAT_QUALIFIER: Record<string, string> = {
   iwork: 'document iWork',
@@ -158,75 +136,17 @@ function docTypeFor(name: string, parent: string): string {
 }
 
 /** Lowercase titles read like sentences; a file name starts with a capital. */
-function capitalize(text: string): string {
-  if (!text) return text;
-  return text[0].toUpperCase() + text.slice(1);
-}
-
 /** Typographic ligatures that survived the PDF and Word extraction. */
-function normalizeLigatures(text: string): string {
-  return text
-    .replace(/ﬀ/g, 'ff')
-    .replace(/ﬁ/g, 'fi')
-    .replace(/ﬂ/g, 'fl')
-    .replace(/ﬃ/g, 'ffi')
-    .replace(/ﬄ/g, 'ffl');
-}
-
-function stripLeadingMarkers(text: string): string {
-  return text
-    .replace(/^[\s"'«»‹›#*•·◦‣_-]+/, '')
-    .replace(/[\s‹›#•·◦‣]+$/, '')
-    .trim();
-}
-
 /**
  * Strips the artefacts that office metadata and word processors leave in a
  * document title: the application prefix, field codes, template leftovers and
  * the duplicated extension that a DOCX-to-PDF conversion produces.
  */
-function cleanTitle(raw: string): string {
-  let t = raw.trim();
-  t = t.replace(/^Microsoft (Word|PowerPoint|Excel)\s*-\s*/i, '');
-  t = t.replace(/\[Mode de compatibilit[ée]\]/gi, ' ');
-  t = t.replace(/TOC\s*\\[a-z]\s*"[^"]*"/gi, ' ');
-  t = t.replace(/\\[a-z]\b/g, ' ');
-  t = t.replace(/\b(right|left)\s+\d+\b/gi, ' ');
-  t = t.replace(/\bPAGEREF\b|\bREF\b|\bHYPERLINK\b/gi, ' ');
-  t = t.replace(/\.(docx?|pdf|pptx?|odt|odp|rtf|txt)$/i, '');
-  t = t.replace(/(docx|doc|pdf|pptx|ppt|odt)$/i, '');
-  t = normalizeLigatures(t);
-  t = t.replace(/\s+/g, ' ').trim();
-  t = stripLeadingMarkers(t);
-  // A title that ends on a separator was cut mid-thought: not a title.
-  t = t.replace(/\s*[-–—]\s*$/, '');
-  t = t.replace(/[.,:;]\s*$/, '');
-  return t;
-}
-
 /**
  * A title is worth keeping only when it names the document. A sentence lifted
  * from the first page does not, however informative it reads.
  */
-function isInformative(title: string, docType: string): boolean {
-  if (title.length < 3 || title.length > 85) return false;
-  if (!/[A-Za-zÀ-ÿ]/.test(title)) return false;
-  if (TITLE_NOISE.some((noise) => noise.test(title))) return false;
-  // A sentence boundary means the extraction ran into the body text.
-  if (/\.\s+\S/.test(title)) return false;
-  if (title.toLowerCase() === docType.toLowerCase()) return false;
-  return true;
-}
-
 /** Removes a leading UE marker that repeats the folder the file sits in. */
-function dropRedundantUePrefix(title: string): string {
-  const stripped = title
-    .replace(/^DFASP\d\s*[–-]\s*/i, '')
-    .replace(/^UE\s*\d+(?:\.\d+)*\s*[:.–-]?\s*/i, '')
-    .trim();
-  return stripped.length >= 3 ? stripped : title;
-}
-
 /** The title of a text file, when its first line actually names it. */
 function textTitle(item: Identified): string {
   const head = (item.head ?? '').trim();
@@ -252,27 +172,12 @@ function descriptorFor(item: Identified, docType: string): string {
   if (item.format === 'sqlite') return FORMAT_QUALIFIER.sqlite;
   const qualifier = FORMAT_QUALIFIER[item.format];
   if (qualifier) return qualifier;
-  const title = cleanTitle(item.title);
+  const title = cleanTitle(repairUtf8Mojibake(item.title));
   if (isInformative(title, docType)) return dropRedundantUePrefix(title);
   return '';
 }
 
-function sanitize(name: string): string {
-  return name
-    .replace(/[\\/:*?"<>|]/g, '-')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 240);
-}
-
 /** Keeps a name short and cut at a word boundary. */
-function clip(text: string, max = 110): string {
-  if (text.length <= max) return text;
-  const cut = text.slice(0, max);
-  const lastSpace = cut.lastIndexOf(' ');
-  return (lastSpace > max * 0.6 ? cut.slice(0, lastSpace) : cut).trim();
-}
-
 /** Files that are storage artefacts rather than course material. */
 function isJunk(item: Identified): boolean {
   if (item.path.includes('/.git/')) return true;
@@ -299,11 +204,11 @@ for (const item of identified) {
   }
 
   const segments = item.path.split('/').filter(Boolean);
-  const fileName = segments[segments.length - 1];
+  const originalName = segments[segments.length - 1];
   const parentPath = '/' + segments.slice(0, -1).join('/');
   const parent = segments[segments.length - 2] ?? '';
   const context = contextFolder(segments);
-  const docType = docTypeFor(fileName, parent);
+  const docType = docTypeFor(originalName, parent);
   const descriptor = descriptorFor(item, docType);
 
   const parts = [context ?? yearContext(segments) ?? '', docType];
@@ -311,7 +216,7 @@ for (const item of identified) {
   const base = parts.filter(Boolean).join(' - ');
 
   const extension = item.format === 'empty' ? '.txt' : item.extension;
-  let toname = sanitize(clip(`${base}${extension}`));
+  let toname = fileName(base, extension);
 
   // Two files can share a title; the second one gets a numbered suffix.
   const bucketKey = `${parentPath}::${docType}`;
@@ -331,10 +236,10 @@ for (const item of identified) {
     fileid: item.fileid,
     toname,
     reason: item.format,
-    oldname: fileName,
+    oldname: originalName,
     path: item.path,
   };
-  if (context && DOC_TYPES.includes(fileName)) {
+  if (context && DOC_TYPES.includes(originalName)) {
     const targetPath = `${parentPath}/${docType}`;
     op.targetPath = targetPath;
     const targetId = folderIdByPath.get(targetPath);
