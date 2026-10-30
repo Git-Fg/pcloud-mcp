@@ -9,7 +9,8 @@
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { PcloudHttpClient } from '/Users/felix/Documents/pcloud_mcp/src/core/http/pcloudClient.js';
-import { detectYear, detectSemester, type Unit } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/classify.js';
+import { detectYear, detectSemester, detectDocType, type Unit } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/classify.js';
+import { classifyByText } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/contentClassify.js';
 
 interface InvNode {
   name: string;
@@ -47,32 +48,53 @@ const dirs: InvNode[] = []; const files: InvNode[] = [];
 const allIds = new Map<string, number>();
 for (const dir of dirs) allIds.set(dir.path, dir.folderid!);
 
-/** Target folders that are mixed and need content inspection. */
-const TARGET_DIRS = [
-  '/Pharmacie/4A/UE-XX-NON-CLASSE/Autres',
-  '/Pharmacie/4A/UE-XX-NON-CLASSE/Fiches',
-  '/Pharmacie/4A/UE-XX-NON-CLASSE/Annales',
-  '/Pharmacie/4A/UE-XX-NON-CLASSE/Images',
-  '/Pharmacie/4A/S2/UE-XX-NON-CLASSE/Annales',
-  '/Pharmacie/4A/S1/S1/Drive - Google Drive/Cours/Fiche Mel',
-  '/Pharmacie/4A/S1/DFASP1 - 4eme annee/Drive - Google Drive/Fiche Mel',
-  '/Pharmacie/4A/S1/DFASP1 - 4eme annee/Drive - Google Drive/Fiche Claudie',
-  '/Pharmacie/4A/S1/DFASP1 - 4eme annee/Drive 3 - Google Drive/drive alison/Parcours 13 Rone\u00f3s',
-  '/Pharmacie/4A/S1/Mes Fiches Compl\u00e8tes',
-  '/Pharmacie/4A/S1/SAV - Serveur Applications Virtuelles/SAV - Serveur Applications Virtuelles/Mes Fiches Compl\u00e8tes',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Perso/Fiche derni\u00e8re minute/Anciennes versions',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Autre/En cours/Fiche autre',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/DFGSP3 2023/VALIDER LA 3A S2/Fiches 3A S2 Lisa',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Fiches ultra condens\u00e9e/Fiches condens\u00e9es UE7',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Rattrapages/Scan',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Rattrapages/annales corrig\u00e9es pdf',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Rattrapages/annales corrig\u00e9es word/Word DOCX',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Derni\u00e8re Minute/Transcription TXT',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Derni\u00e8re Minute',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Autre/En cours/ED Deborah',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Perso/ED',
-  '/Pharmacie/3A/DFGSP3 - 3eme annee/Stage 3A',
-];
+/** Extract text from a Word document by reading its XML part. */
+async function extractDocxText(fileid: number): Promise<string> {
+  const client = new PcloudHttpClient();
+  try {
+    const linkRes = await client.json<{ path: string; hosts: string[] }>('getfilelink', { fileid, forcedownload: true, maxspeed: 5000000 });
+    const link = `https://${linkRes.hosts[0]}${linkRes.path}`;
+    const res = await fetch(link);
+    const buf = await res.arrayBuffer();
+    const tmp = `/tmp/pcloud-${fileid}.docx`;
+    await writeFile(tmp, new Uint8Array(buf));
+    const proc = Bun.spawn(['unzip', '-p', tmp, 'word/document.xml'], { stdout: 'pipe', stderr: 'ignore' });
+    const xml = await new Response(proc.stdout).text();
+    try { await Bun.file(tmp).delete(); } catch {}
+    // Paragraphs become line breaks, the markup is dropped.
+    const text = xml
+      .replace(/<\/w:p>/g, '\n')
+      .replace(/<w:tab[^>]*\/>/g, ' ')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'");
+    return text.slice(0, 8000);
+  } catch {
+    return '';
+  }
+}
+
+/** Extract plain text from a file, whatever its format. */
+async function extractText(file: InvNode): Promise<string> {
+  const name = file.name.toLowerCase();
+  if (name.endsWith('.pdf')) return extractPdfText(file.fileid!);
+  if (name.endsWith('.docx') || name.endsWith('.doc')) return extractDocxText(file.fileid!);
+  if (name.endsWith('.txt') || name.endsWith('.md') || name.endsWith('.csv') || name.endsWith('.json')) {
+    const client = new PcloudHttpClient();
+    try {
+      const linkRes = await client.json<{ path: string; hosts: string[] }>('getfilelink', { fileid: file.fileid!, forcedownload: true, maxspeed: 5000000 });
+      const link = `https://${linkRes.hosts[0]}${linkRes.path}`;
+      const res = await fetch(link);
+      return (await res.text()).slice(0, 8000);
+    } catch {
+      return '';
+    }
+  }
+  return '';
+}
 
 /** Extract text from a PDF (first 3 pages) using pdftotext. */
 async function extractPdfText(fileid: number): Promise<string> {
@@ -93,66 +115,11 @@ async function extractPdfText(fileid: number): Promise<string> {
   }
 }
 
-/** Classify by content keywords. */
+/** Classify by content keywords, falling back to the file name. */
 function classifyByContent(text: string, fileName: string, year: string): Unit | null {
-  const t = text.toLowerCase();
-  const f = fileName.toLowerCase();
-
-  // UE-01-OMS (Onco/Hémato)
-  if (/h[eé]mato|leuc[eé]mie|lymphome|my[eé]lome|oncolog|chimioth[eé]rapie|anticorps|rituximab|bortezomib|lenalidomide|daratumumab|mielome|maladie\s*du\s*sang/.test(t)) return 'UE-01-OMS';
-
-  // UE-02-PAM (Chimie thérapeutique, Pharmacognosie, Galénique)
-  if (/pharmacognosie|gal[eé]nique|chimie\s*th[eé]rapeutique|principe\s*actif|p[nn]enilline|[cç]ephalosporine|macrolide|aminoside|alcalo[\"i]de|isoquinol|tropanique|quinine|colchicine|galanthamine|birefringence|polarisation|optique\s*g[eé]om[eé]trique|spectro|uv|visible|ir|rmn|masse|radioactivit[eé]/.test(t)
-      && !/bact[eé]rio|virolog|parasito|myco|infectiolog/.test(t)) return 'UE-02-PAM';
-
-  // UE-03-VEMA (PK, Toxico, Variabilité)
-  if (/pharmacocin[eé]tique|clairance|volume\s*de\s*distribution|biodisponibilit[eé]|demi[- ]vie|auc|aumc|trm|vss|k[eé]la|toxicolog|surdosage|intoxication|n[eé]phrotoxicit[eé]|h[eé]patotoxicit[eé]|cystatine\s*c|ckd[- ]epi|schwartz|ajustement\s*posolog/.test(t)) return 'UE-03-VEMA';
-
-  // UE-04-PI (Infectieuses)
-  if (/infectiolog|bact[eé]riolog|virolog|parasitolog|mycolog\s*invasive|s[eé]psis|choc\s*s[eé]ptique|m[eé]ningite|endocardite|pneumonie|tuberculose|paludisme|antiviral|antir[eé]troviral|vi[rh]i|pr[eé]p|tpe|tas\s*p|inhibiteur\s*d\'int[eé]grase|dolut[eé]gravir|bict[eé]gravir|tenofovir|emtricitabine/.test(t)
-      && !/association\s*de\s*tutorat/.test(t)) return 'UE-04-PI';
-
-  // UE-05-SNC (SNC, Douleur, Endocrino)
-  if (/snc|syst[eé]me\s*nerveux|neuro|[eé]pilepsie|parkinson|alzheimer|migraine|douleur|antalgique|opio[\"i]de|morphine|fentanyl|tramadol|gabapentine|pr[eé]gabaline|endocrino|diab[eé]te|insuline|thyro[\"i]de|cortico[\"i]de|surr[eé]nale|hypophys[eé]|pnedi|synapse|r[eé]cepteur|canal\s*ionique/.test(t)
-      && !/deep\s*learning|apprentissage\s*profond|machine\s*learning|ia|intelligence\s*artificielle/.test(t)) return 'UE-05-SNC';
-
-  // UE-06-VIGILANCE (Vigilances, VEA)
-  if (/vigilance|pharmacovigilance|mat[eé]riovigilance|nutrivigilance|h[eé]movigilance|d[eé]claration\s*d[e']effet|signalement|ear\/veg|meddra|rmp|plan\s*de\s*gestion\s*des\s*risque/.test(t)) return 'UE-06-VIGILANCE';
-
-  // UE-07-CV (Cardio/Vasculaire/Rénal)
-  if (/cardio|hypertension|insuffisance\s*cardiaque|arythmie|anticoagulant|antiagr[eé]gant|warfarine|acenocoumarol|rivaroxaban|apixaban|dabigatran|heparine|enoxaparine|fibrinolyse|plaquettes|coagulation|h[eé]mostase|rein|n[eé]phro|cr[eé]atinine|dfg|ckd|glomerul|proteinurie|h[eé]modialyse|r[eé]cepteurs\s*membranaires|transporteur/.test(t)) return 'UE-07-CV';
-
-  // UE-08-PA (Pharmacie appliquée, Industrie, POP officine)
-  if (/officine|dispensation|conduite\s*\u00e0\s*tenir|analyse\s*d[e']ordonnance|conseil\s*pharmaceutique|pharmacie\s*clinique|industrie\s*pharmaceutique|amm|autorisation\s*de\s*mise\s*sur\s*le\s*march[eé]|g[eé]n[eé]rique|biosimilaire|prix|remboursement|transparence|assurance\s*qualit[eé]|bonnes\s*pratiques|bpf|bpfa|gmp|cycle\s*de\s*vie\s*du\s*m[eé]dicament|affaires\s*r[eé]glementaires|vea|pharmaco[ée]conomie/.test(t)) return 'UE-08-PA';
-
-  // UE-09-MICROBIO (Microbiologie inorganique/chimie analytique)
-  if (/chimie\s*inorganique|analytique|titrim[eé]trie|indicateurs\s*color[eé]s|pH|oxydor[eé]duction|complexe|ch[eé]lation|m[eé]tal|ion\s*m[eé]tallique|bioinorganique|eau|oligo[eé]l[eé]ment/.test(t)) return 'UE-09-MICROBIO';
-
-  // UE-10-BOTANIQUE (Botanique, Phytothérapie, Épidémiologie/Santé publique - 5A)
-  if (/botanique|phytoth[eé]rapie|plante\s*m[eé]dicinale|hom[eé]opathie|aromath[eé]rapie|huile\s*essentielle|pharmacognosie\s*v[eé]g[eé]tale/.test(t)) return 'UE-10-BOTANIQUE';
-  if (/causalit[eé]|risque|biais|m[eé]ta[- ]analyse|essai\s*randomis[eé]|epid[eé]miolog|sant[eé]\s*publique|pr[eé]vention|promotion\s*de\s*la\s*sant[eé]/.test(t) && year === '5A') return 'UE-10-BOTANIQUE';
-
-  // UE-11-TUBE-DIG (Tube digestif)
-  if (/digestif|gastro|ent[eé]rite|colite|h[eé]patique|cholestase|cytolyse|insuffisance\s*h[eé]patique|cirrhose|pancr[eé]as|ulc[eé]re|reflux|rgo|h\.?\s*pylori|mici|maladie\s*inflammatoire\s*intestin|rectocolite|crohn|antiem[eé]tique|antiacide|ipp|inhibiteur\s*de\s*pompe/.test(t)) return 'UE-11-TUBE-DIG';
-
-  // UE-12-SANTE-PUB (Santé publique, Éco droit, Économie du médicament)
-  if (/sant[eé]\s*publique|[eé]pid[eé]miologie|assurance\s*maladie|s[eé]curit[eé]\s*sociale|haute\s*autorit[eé]\s*de\s*sant[eé]|has|remboursement|[eé]conomie\s*du\s*m[eé]dicament|[eé]valuation\s*m[eé]dico[- ]economique|choix\s*th[eé]rapeutique|acc[eé]s\s*aux\s*soins|droit\s*pharmaceutique|l[eé]gislation/.test(t)) return 'UE-12-SANTE-PUB';
-
-  // Fallback to filename
-  if (/ue\s*0?1\b/.test(f)) return 'UE-01-OMS';
-  if (/ue\s*0?2\b/.test(f)) return 'UE-02-PAM';
-  if (/ue\s*0?3\b/.test(f)) return 'UE-03-VEMA';
-  if (/ue\s*0?4\b/.test(f)) return 'UE-04-PI';
-  if (/ue\s*0?5\b/.test(f)) return 'UE-05-SNC';
-  if (/ue\s*0?6\b/.test(f)) return 'UE-06-VIGILANCE';
-  if (/ue\s*0?7\b/.test(f)) return 'UE-07-CV';
-  if (/ue\s*0?8\b/.test(f)) return 'UE-08-PA';
-  if (/ue\s*0?9\b/.test(f)) return 'UE-09-MICROBIO';
-  if (/ue\s*10\b/.test(f)) return 'UE-10-BOTANIQUE';
-  if (/ue\s*11\b/.test(f)) return 'UE-11-TUBE-DIG';
-  if (/ue\s*12\b/.test(f)) return 'UE-12-SANTE-PUB';
-
-  return null;
+  const fromContent = text.trim() ? classifyByText(text.toLowerCase(), year) : null;
+  if (fromContent) return fromContent;
+  return classifyByText(fileName.toLowerCase(), year);
 }
 
 const moves: MoveOp[] = [];
@@ -180,13 +147,7 @@ async function processFile(file: InvNode): Promise<void> {
   const semester = detectSemester(file.path);
   const base = `/Pharmacie/${year}${semester ? `/${semester}` : ''}`;
 
-  // Try to extract text if PDF
-  let text = '';
-  if (file.name.toLowerCase().endsWith('.pdf')) {
-    text = await extractPdfText(file.fileid!);
-  }
-
-  // Try docx - use unzip + read word/document.xml (simplified: skip for now, use filename)
+  const text = await extractText(file);
   const unit = classifyByContent(text, file.name, year);
   if (!unit) return;
 
@@ -207,25 +168,22 @@ async function processFile(file: InvNode): Promise<void> {
 }
 
 let processed = 0;
-for (const targetDir of TARGET_DIRS) {
-  const targetDirNode = dirs.find(d => d.path === targetDir);
-  if (!targetDirNode) continue;
+const CANONICAL_UNIT = /^\/Pharmacie\/(3A|4A|5A)(\/(S1|S2))?\/UE-[0-9]{2}-[A-Z-]+/;
+const CANONICAL_CSP = /^\/Pharmacie\/(3A|4A|5A)\/CSP\//;
 
-  for (const child of targetDirNode.children ?? []) {
-    if (child.isfolder) {
-      // Recurse one level
-      for (const file of files.filter(f => f.path.startsWith(child.path + '/'))) {
-        if (processed >= maxFiles) break;
-        await processFile(file);
-        processed++;
-      }
-    } else {
-      if (processed >= maxFiles) break;
-      await processFile(child);
-      processed++;
-    }
-  }
+// Every file still outside the canonical tree, except the technical
+// material that belongs to no teaching unit at all.
+const candidates = files.filter((f) => {
+  if (CANONICAL_UNIT.test(f.path) || CANONICAL_CSP.test(f.path)) return false;
+  if (f.path.startsWith('/Pharmacie/_PROJETS') || f.path.startsWith('/Pharmacie/_OUTILS')) return false;
+  const ext = f.name.slice(f.name.lastIndexOf('.')).toLowerCase();
+  return ['.pdf', '.docx', '.txt', '.md', '.csv'].includes(ext);
+});
+
+for (const file of candidates) {
   if (processed >= maxFiles) break;
+  await processFile(file);
+  processed++;
 }
 
 console.log(`Processed ${processed} files, ${moves.length} classified`);

@@ -8,7 +8,7 @@
  * Usage: bun run scripts/pharmacie-classify-transverse.ts [inventory] [out]
  */
 import { readFile, writeFile } from 'node:fs/promises';
-import { detectYear, detectSemester, type Unit } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/classify.js';
+import { detectYear, detectSemester, detectDocType, type Unit } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/classify.js';
 
 interface InvNode {
   name: string;
@@ -61,8 +61,9 @@ const unclassified = files.filter((f) => !isCanonical(f.path));
 function signalFromSegment(seg: string, year: string | null): Unit | null {
   const s = seg.trim().toLowerCase();
 
-  // 1) Explicit UE number (already handled by detectUnit in classify.ts but reimplement for context)
-  const ueNum = s.match(/^ue[\s\-.]*0?(\d{1,2})$/);
+  // 1) A unit number anywhere in the segment: "ED UE8 Chimie Théra",
+  //    "UE1.2.ED3 Corrigé", "Fiches condensées UE7".
+  const ueNum = s.match(/ue[\s\-.]*0?(\d{1,2})(?!\d)/);
   if (ueNum && year) {
     const num = Number(ueNum[1]);
     const map: Record<string, Record<number, Unit>> = {
@@ -70,7 +71,8 @@ function signalFromSegment(seg: string, year: string | null): Unit | null {
       '4A': { 1: 'UE-01-OMS', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-04-PI', 5: 'UE-05-SNC', 6: 'UE-06-VIGILANCE', 7: 'UE-07-CV', 8: 'UE-08-PA', 9: 'UE-09-MICROBIO', 10: 'UE-10-BOTANIQUE', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' },
       '5A': { 1: 'UE-01-OMS', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-04-PI', 5: 'UE-05-SNC', 6: 'UE-06-VIGILANCE', 7: 'UE-07-CV', 8: 'UE-08-PA', 9: 'UE-09-MICROBIO', 10: 'UE-10-BOTANIQUE', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' }
     };
-    return map[year]?.[num] ?? null;
+    const mapped = map[year]?.[num];
+    if (mapped) return mapped;
   }
 
   // 2) POP officine / UE O*
@@ -94,18 +96,27 @@ function signalFromSegment(seg: string, year: string | null): Unit | null {
   if (/^ue\s*i4\b|^i4\b/.test(s)) return 'UE-08-PA';
   if (/industrie/.test(s)) return 'UE-08-PA';
 
-  // 4) 3A / 4A / 5A named segments
-  if (/^cv$|^cardio$|rein\b|h[ée]mostase|s[eé]mio\s*cv/.test(s)) return 'UE-07-CV';
+  // 4) Named segments. The infectious-disease topics sit in PI in the
+  //    fourth and fifth years, but in microbiology in the third year,
+  //    where the unit nine is "microbiologie générale et clinique".
+  const infectTopics = /infecti|bact[eé]rio|virolog|parasitolog|mycolog/;
+  if (year === '3A') {
+    if (infectTopics.test(s) || /microbiol/.test(s)) return 'UE-09-MICROBIO';
+  } else if (infectTopics.test(s)) {
+    return 'UE-04-PI';
+  } else if (/microbiol/.test(s)) {
+    return 'UE-09-MICROBIO';
+  }
+  if (/^cv$|^cardio$|rein\b|h[eé]mostase|s[eé]mio\s*cv/.test(s)) return 'UE-07-CV';
   if (/^pam\b|pharmacognosie|gal[eé]nique|chimie\s*th[eé]rapeut/.test(s)) return 'UE-02-PAM';
-  if (/micro\b|viro\b|microbiolog|bact[eé]riolog|parasito|myco\b/.test(s)) return 'UE-09-MICROBIO';
+  if (/^micro\b|viro\b/.test(s)) return 'UE-09-MICROBIO';
   if (/h[eé]mato\b|oncolog|leuc[eé]mi|lymphom|pharmacie\s*clinique/.test(s)) return 'UE-01-OMS';
   if (/toxico|toxicolog/.test(s)) return 'UE-03-VEMA';
   if (/pk\b|pharmacocin|variabilit|stp\b/.test(s)) return 'UE-03-VEMA';
   if (/snc\b|neuro|pnedi|douleur|inflammat|endocrino|diab[eé]te|epileps|migraine|alzheimer|parkinson|psychiatrie/.test(s)) return 'UE-05-SNC';
   if (/vea\b|vigilance/.test(s)) return 'UE-06-VIGILANCE';
-  if (/infecti|bact[eé]rio|virolog|antibioti/.test(s)) return 'UE-04-PI';
   if (/pir\b|economie|[ée]co\s*droit|droit\s*pharm/.test(s)) return 'UE-12-SANTE-PUB';
-  if (/indus\b|^i1\b/.test(s)) return 'UE-08-PA';
+  if (/indus\b/.test(s)) return 'UE-08-PA';
   if (/botaniqu|phyto|plantes|hom[eé]opath/.test(s)) return 'UE-10-BOTANIQUE';
   if (/digestif|h[eé]pat|gastro|ent[eé]ro|nutrition|mici\b/.test(s)) return 'UE-11-TUBE-DIG';
   if (/sant[eé]\s*publique|[eé]pid[eé]mi|assuranc/.test(s)) return 'UE-12-SANTE-PUB';
