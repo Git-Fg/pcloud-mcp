@@ -11,10 +11,10 @@
  *
  * Usage: bun run scripts/pharmacie-create-tar.ts [mapping] [mirrorRoot] [outTar] [concurrency]
  */
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, _writeFile } from 'node:fs/promises';
 import { createWriteStream } from 'node:fs';
 import { pipeline } from 'node:stream/promises';
-import { PcloudHttpClient } from '../src/core/http/pcloudClient.js';
+import { _PcloudHttpClient } from '../src/core/http/pcloudClient.js';
 
 interface MappedEntry {
   mirrorPath: string;
@@ -27,7 +27,7 @@ interface MappedEntry {
 const mappingPath = process.argv[2] ?? '/tmp/pharmacie-tar-mapping-final.json';
 const mirrorRoot = process.argv[3] ?? '/Users/felix/Downloads/pharmacie_mirror';
 const outTar = process.argv[4] ?? '/Users/felix/Downloads/pharmacie_canonical.tar';
-const concurrency = Number(process.argv[5] ?? 4);
+const _concurrency = Number(process.argv[5] ?? 4);
 
 const mappingData = JSON.parse(await readFile(mappingPath, 'utf8')) as { mapping: MappedEntry[]; notFound: number };
 const entries = mappingData.mapping;

@@ -1,5 +1,6 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import { registerPcloudTools } from './core/tools/index.js';
+import { registerPcloudPrompts } from './mcp/prompts.js';
 import { validateConfig } from './core/config.js';
 import { readPkgFromHere } from './core/pkg.js';
 
@@ -11,5 +12,6 @@ export function createServer(): McpServer {
     { instructions: pkg.description ?? 'pCloud MCP server' }
   );
   registerPcloudTools(server);
+  registerPcloudPrompts(server);
   return server;
 }

@@ -30,7 +30,14 @@ export const PcloudFileItem = z
     size: z.number().int().nonnegative().optional(),
     contenttype: z.string().optional(),
     category: z.number().int().optional(),
-    hash: z.number().int().optional(),
+    /**
+     * The 64-bit content hash. JSON carries it as a double, so the low bits
+     * are past the safe integer range and the value is rounded on the way
+     * in. The rounding is deterministic, so files that hold the same bytes
+     * still land on the same value — the hash groups candidates, it does
+     * not prove them.
+     */
+    hash: z.number().optional(),
     comments: z.number().int().optional(),
   })
   .passthrough();

@@ -6,7 +6,7 @@
  *
  * Usage: bun run scripts/pharmacie-create-tar-staged.ts [mapping] [mirrorRoot] [outTar] [staging] [concurrency]
  */
-import { readFile, writeFile, mkdir, cp, rm } from 'node:fs/promises';
+import { readFile, _writeFile, mkdir, cp, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 
 interface MappedEntry {
@@ -21,7 +21,7 @@ const mappingPath = process.argv[2] ?? '/tmp/pharmacie-tar-mapping-final.json';
 const mirrorRoot = process.argv[3] ?? '/Users/felix/Downloads/pharmacie_mirror';
 const outTar = process.argv[4] ?? '/Users/felix/Downloads/pharmacie_canonical.tar';
 const staging = process.argv[5] ?? '/tmp/pharmacie_tar_staging';
-const concurrency = Number(process.argv[6] ?? 8);
+const _concurrency = Number(process.argv[6] ?? 8);
 
 const mappingData = JSON.parse(await readFile(mappingPath, 'utf8')) as { mapping: MappedEntry[]; notFound: number };
 const entries = mappingData.mapping;

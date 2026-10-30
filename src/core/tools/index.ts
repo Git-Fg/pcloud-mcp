@@ -38,6 +38,9 @@ import { getapiserverHandler, GetapiserverToolMeta } from './getapiserver.js';
 import { currentserverHandler, CurrentserverToolMeta } from './currentserver.js';
 import { extractarchiveHandler, ExtractarchiveToolMeta } from './extractarchive.js';
 import { batchrenameHandler, BatchrenameToolMeta } from './batchrename.js';
+import { listRecursiveHandler, ListRecursiveToolMeta } from './list-recursive.js';
+import { rangeReadHandler, RangeReadToolMeta } from './range-read.js';
+import { checksumGroupHandler, ChecksumGroupToolMeta } from './checksum-group.js';
 
 const OUTPUT_SCHEMA = z.object({ result: z.literal(0) }).passthrough();
 const OUTPUT_SCHEMA_PASSTHROUGH = z.object({}).passthrough();
@@ -82,6 +85,9 @@ export function registerPcloudTools(server: McpServer): void {
     { name: 'extractarchive', meta: ExtractarchiveToolMeta, handler: extractarchiveHandler, outputSchema: OUTPUT_SCHEMA },
     { name: 'deletefolderrecursive', meta: DeletefolderrecursiveToolMeta, handler: deletefolderrecursiveHandler, outputSchema: OUTPUT_SCHEMA },
     { name: 'batchrename', meta: BatchrenameToolMeta, handler: batchrenameHandler, outputSchema: OUTPUT_SCHEMA_PASSTHROUGH },
+    { name: 'list_recursive', meta: ListRecursiveToolMeta, handler: listRecursiveHandler, outputSchema: OUTPUT_SCHEMA_PASSTHROUGH },
+    { name: 'range_read', meta: RangeReadToolMeta, handler: rangeReadHandler, outputSchema: OUTPUT_SCHEMA_PASSTHROUGH },
+    { name: 'checksum_group', meta: ChecksumGroupToolMeta, handler: checksumGroupHandler, outputSchema: OUTPUT_SCHEMA_PASSTHROUGH },
   ];
 
   for (const tool of tools) {
