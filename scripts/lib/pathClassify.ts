@@ -8,20 +8,10 @@
  * for the folders that say nothing.
  */
 
-import { detectYear, type Unit } from './classify.js';
+import { detectYear } from './classify.js';
+import { unitByNumber, type Unit } from './codebook.js';
 
-/** The unit a number names, in the year that number belongs to. */
-const UNIT_BY_YEAR: Record<string, Record<number, Unit>> = {
-  '3A': { 1: 'UE-02-PAM', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-01-OMS', 5: 'UE-05-SNC', 6: 'UE-05-SNC', 7: 'UE-07-CV', 8: 'UE-02-PAM', 9: 'UE-09-MICROBIO', 10: 'UE-09-MICROBIO', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' },
-  '4A': { 1: 'UE-01-OMS', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-04-PI', 5: 'UE-05-SNC', 6: 'UE-06-VIGILANCE', 7: 'UE-07-CV', 8: 'UE-08-PA', 9: 'UE-09-MICROBIO', 10: 'UE-10-BOTANIQUE', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' },
-  '5A': { 1: 'UE-01-OMS', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-04-PI', 5: 'UE-05-SNC', 6: 'UE-06-VIGILANCE', 7: 'UE-07-CV', 8: 'UE-08-PA', 9: 'UE-09-MICROBIO', 10: 'UE-10-BOTANIQUE', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' }
-};
-
-/** The unit a number names, whatever the year. */
-export function unitByNumber(number: number, year: string | null): Unit | null {
-  if (!year) return null;
-  return UNIT_BY_YEAR[year]?.[number] ?? null;
-}
+export { unitByNumber };
 
 /**
  * The unit a path segment refers to, or null when it refers to none.
@@ -93,6 +83,35 @@ export function resolveUnitFromPath(path: string): Unit | null {
   for (let i = segments.length - 1; i >= 1; i -= 1) {
     const unit = signalFromSegment(segments[i], year);
     if (unit) return unit;
+  }
+  return null;
+}
+
+/**
+ * The unit number a path names, read from its segments deepest first.
+ *
+ * The canonical unit folder is left out on purpose. Its number comes from
+ * the codebook, and in the third year the codebook folds several programme
+ * units into one name, so that number is not the unit the document was
+ * taught in. The folders below it, and the document itself, keep the
+ * programme number.
+ *
+ * The third year numbers its units differently from the fourth, so the
+ * number only means something together with the year it belongs to.
+ */
+export function resolveUnitNumberFromPath(path: string, year: string | null): number | null {
+  const segments = path.split('/').filter(Boolean);
+  const canonical = segments.findIndex(
+    (segment, i) =>
+      /^UE-[0-9]{2}-[A-Z-]+$/.test(segment) &&
+      (segments[i - 1] === '3A' || segments[i - 1] === 'S1' || segments[i - 1] === 'S2')
+  );
+  for (let i = segments.length - 1; i >= 0; i -= 1) {
+    if (i === canonical) continue;
+    const match = segments[i].match(/ue[\s\-.]*0?(\d{1,2})(?!\d)/i);
+    if (!match) continue;
+    const number = Number(match[1]);
+    if (number >= 1 && number <= 12 && unitByNumber(number, year)) return number;
   }
   return null;
 }

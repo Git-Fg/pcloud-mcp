@@ -11,7 +11,7 @@
  * moves run, because a plan is written against a tree and the tree moves
  * on between the plan and the move.
  *
- * Usage: bun run scripts/pharmacie-apply-moves.ts [plan] [manifest] [inventory] [--apply]
+ * Usage: bun run scripts/pharmacie-apply-moves.ts [plan] [manifest] [--inventory path] [--apply]
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { PcloudHttpClient } from '../src/core/http/pcloudClient.js';
@@ -39,7 +39,8 @@ interface InvNode {
 const planPath = process.argv[2] ?? '/tmp/pharmacie-inspect-plan.json';
 const manifestPath = process.argv[3] ?? '/tmp/pharmacie-moves-manifest.json';
 const apply = process.argv.includes('--apply');
-const inventoryArg = process.argv.slice(2).find((arg) => arg.startsWith('/') && arg.endsWith('.json') && arg !== planPath);
+const inventoryFlag = process.argv.indexOf('--inventory');
+const inventoryArg = inventoryFlag >= 0 ? process.argv[inventoryFlag + 1] : undefined;
 
 const plan = JSON.parse(await readFile(planPath, 'utf8')) as { moves: PlannedMove[] };
 const moves = plan.moves;

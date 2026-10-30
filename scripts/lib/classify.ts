@@ -12,22 +12,9 @@
  */
 
 /** The canonical teaching units. */
-export const UNITS = [
-  'UE-01-OMS',
-  'UE-02-PAM',
-  'UE-03-VEMA',
-  'UE-04-PI',
-  'UE-05-SNC',
-  'UE-06-VIGILANCE',
-  'UE-07-CV',
-  'UE-08-PA',
-  'UE-09-MICROBIO',
-  'UE-10-BOTANIQUE',
-  'UE-11-TUBE-DIG',
-  'UE-12-SANTE-PUB',
-] as const;
+import { UNIT_BY_YEAR, UNITS, type Unit } from './codebook.js';
 
-export type Unit = (typeof UNITS)[number];
+export { UNITS, UNIT_BY_YEAR, type Unit };
 
 /** The kinds of material a canonical unit holds. */
 export const DOC_TYPES = [
@@ -49,55 +36,11 @@ export const DOC_TYPES = [
 export type DocType = (typeof DOC_TYPES)[number];
 
 /**
- * The unit number a legacy folder names, per year. The third year only
- * covered the units from UE7 onwards; its UE8 was pharmacognosie, which
- * belongs with the active ingredients rather than with the applied
- * pharmacy of the fourth year.
+ * The unit number a legacy folder names, per year.
+ *
+ * The codebook lives in its own module because two sets of rules need it,
+ * and a rule that exists twice drifts.
  */
-const UNIT_BY_YEAR: Record<string, Record<number, Unit>> = {
-  '3A': {
-    1: 'UE-02-PAM',
-    2: 'UE-02-PAM',
-    3: 'UE-03-VEMA',
-    4: 'UE-01-OMS',
-    5: 'UE-05-SNC',
-    6: 'UE-05-SNC',
-    7: 'UE-07-CV',
-    8: 'UE-02-PAM',
-    9: 'UE-09-MICROBIO',
-    10: 'UE-09-MICROBIO',
-    11: 'UE-11-TUBE-DIG',
-    12: 'UE-12-SANTE-PUB',
-  },
-  '4A': {
-    1: 'UE-01-OMS',
-    2: 'UE-02-PAM',
-    3: 'UE-03-VEMA',
-    4: 'UE-04-PI',
-    5: 'UE-05-SNC',
-    6: 'UE-06-VIGILANCE',
-    7: 'UE-07-CV',
-    8: 'UE-08-PA',
-    9: 'UE-09-MICROBIO',
-    10: 'UE-10-BOTANIQUE',
-    11: 'UE-11-TUBE-DIG',
-    12: 'UE-12-SANTE-PUB',
-  },
-  '5A': {
-    1: 'UE-01-OMS',
-    2: 'UE-02-PAM',
-    3: 'UE-03-VEMA',
-    4: 'UE-04-PI',
-    5: 'UE-05-SNC',
-    6: 'UE-06-VIGILANCE',
-    7: 'UE-07-CV',
-    8: 'UE-08-PA',
-    9: 'UE-09-MICROBIO',
-    10: 'UE-10-BOTANIQUE',
-    11: 'UE-11-TUBE-DIG',
-    12: 'UE-12-SANTE-PUB',
-  },
-};
 
 /**
  * Topic words that name a unit even in a folder that is not called a unit:
@@ -172,6 +115,23 @@ export function detectYear(path: string): string | null {
   }
   if (/DFGSP3/i.test(path)) return '3A';
   if (/DFASP1/i.test(path)) return '4A';
+  return null;
+}
+
+/**
+ * The semester a unit number belongs to, per year.
+ *
+ * The third year runs over two semesters, the first holding the units one
+ * to six and the second the units seven to twelve. That split follows the
+ * unit number, not the folder the material was uploaded into: the Drive
+ * exports nested content inside a folder named after another semester, so
+ * the path alone does not say which semester a document was taught in.
+ *
+ * The later years run over a year, and their material says which semester
+ * it belongs to.
+ */
+export function semesterForUnit(year: string, number: number): string | null {
+  if (year === '3A') return number <= 6 ? 'S1' : 'S2';
   return null;
 }
 

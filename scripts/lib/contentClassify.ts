@@ -10,6 +10,7 @@
  */
 
 import type { Unit } from './classify.js';
+import { unitByNumber } from './codebook.js';
 
 /**
  * The signals that name a unit, and how strongly they name it.
@@ -86,13 +87,7 @@ const UNIT_SIGNALS: Array<{ unit: Unit; strong: RegExp[]; weak: RegExp[] }> = [
 export function classifyByText(t: string, year: string): Unit | null {
   const ueNum = t.match(/ue[\s\-.]*0?(\d{1,2})(?!\d)/);
   if (ueNum) {
-    const num = Number(ueNum[1]);
-    const map: Record<string, Record<number, Unit>> = {
-      '3A': { 1: 'UE-02-PAM', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-01-OMS', 5: 'UE-05-SNC', 6: 'UE-05-SNC', 7: 'UE-07-CV', 8: 'UE-02-PAM', 9: 'UE-09-MICROBIO', 10: 'UE-09-MICROBIO', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' },
-      '4A': { 1: 'UE-01-OMS', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-04-PI', 5: 'UE-05-SNC', 6: 'UE-06-VIGILANCE', 7: 'UE-07-CV', 8: 'UE-08-PA', 9: 'UE-09-MICROBIO', 10: 'UE-10-BOTANIQUE', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' },
-      '5A': { 1: 'UE-01-OMS', 2: 'UE-02-PAM', 3: 'UE-03-VEMA', 4: 'UE-04-PI', 5: 'UE-05-SNC', 6: 'UE-06-VIGILANCE', 7: 'UE-07-CV', 8: 'UE-08-PA', 9: 'UE-09-MICROBIO', 10: 'UE-10-BOTANIQUE', 11: 'UE-11-TUBE-DIG', 12: 'UE-12-SANTE-PUB' }
-    };
-    const mapped = map[year]?.[num];
+    const mapped = unitByNumber(Number(ueNum[1]), year);
     if (mapped) return mapped;
   }
 
@@ -112,7 +107,14 @@ export function classifyByText(t: string, year: string): Unit | null {
       best = unit;
     }
   }
-  return bestScore >= 2 ? best : null;
+  if (bestScore < 2) return null;
+
+  // The third year has no unit on infectious diseases as such: its
+  // microbiology is a general and clinical one, which is where its
+  // bacteriology, virology and parasitology belong.
+  if (year === '3A' && best === 'UE-04-PI') return 'UE-09-MICROBIO';
+
+  return best;
 }
 
 /** Classify from the text a file carries, falling back to its name. */

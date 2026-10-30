@@ -9,9 +9,9 @@
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { PcloudHttpClient } from '/Users/felix/Documents/pcloud_mcp/src/core/http/pcloudClient.js';
-import { detectYear, detectSemester, detectDocType, type Unit } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/classify.js';
+import { detectYear, detectSemester, detectDocType, semesterForUnit, type Unit } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/classify.js';
 import { classifyByText } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/contentClassify.js';
-import { resolveUnitFromPath } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/pathClassify.js';
+import { resolveUnitFromPath, resolveUnitNumberFromPath } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/pathClassify.js';
 import { indexInventory, NameBook } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/inventory.js';
 import { freeName } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/naming.js';
 
@@ -125,6 +125,21 @@ function classifyByContent(text: string, fileName: string, year: string): Unit |
   return classifyByText(fileName.toLowerCase(), year);
 }
 
+/**
+ * The semester the material belongs to.
+ *
+ * In the third year the unit number decides: the programme runs the units
+ * one to six in the first semester and the units seven to twelve in the
+ * second. The folder the document was uploaded into does not say so, because
+ * the Drive exports nested content inside a folder named after another
+ * semester. In the later years the material carries its own semester.
+ */
+function semesterForYear(path: string, year: string): string | null {
+  const number = resolveUnitNumberFromPath(path, year);
+  const fromUnit = number === null ? null : semesterForUnit(year, number);
+  return fromUnit ?? detectSemester(path);
+}
+
 const moves: MoveOp[] = [];
 const foldersToCreate = new Map<string, { path: string; name: string; parentPath: string; parentid: number }>();
 
@@ -143,7 +158,7 @@ function ensureFolder(targetPath: string): number | null {
 
 async function processFile(file: InvNode): Promise<void> {
   const year = detectYear(file.path) ?? '4A';
-  const semester = detectSemester(file.path);
+  const semester = semesterForYear(file.path, year);
   const base = `/Pharmacie/${year}${semester ? `/${semester}` : ''}`;
 
   // The folder names above the file say what it is about, and they say it
