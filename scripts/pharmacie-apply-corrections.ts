@@ -9,6 +9,8 @@
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { PcloudHttpClient } from '../src/core/http/pcloudClient.js';
+import { indexInventory, NameBook } from './lib/inventory.js';
+import { freeName as pickFreeName } from './lib/naming.js';
 
 interface Correction {
   id: number;
@@ -36,47 +38,9 @@ const corrections = plan.corrections.filter((c) => c.toPath);
 
 const inventoryPath = inventoryArg ?? '/tmp/pharmacie-inventory-18.json';
 const roots = JSON.parse(await readFile(inventoryPath, 'utf8')) as InvNode[];
-const dirs: InvNode[] = [];
-(function walk(list: InvNode[]): void {
-  for (const node of list) {
-    if (node.isfolder) {
-      dirs.push(node);
-      walk(node.children ?? []);
-    }
-  }
-})(roots);
 
-const allIds = new Map<string, number>();
-for (const dir of dirs) allIds.set(dir.path, dir.folderid!);
-
-/** The names already in a folder, so a move never overwrites one. */
-const namesInFolder = new Map<string, Set<string>>();
-for (const dir of dirs) {
-  const parent = dir.path.replace(/\/[^/]+$/, '');
-  const names = namesInFolder.get(parent) ?? new Set<string>();
-  names.add(dir.name);
-  namesInFolder.set(parent, names);
-}
-
-function freeName(targetPath: string, wanted: string): string {
-  let names = namesInFolder.get(targetPath);
-  if (!names) {
-    names = new Set<string>();
-    namesInFolder.set(targetPath, names);
-  }
-  if (!names.has(wanted)) {
-    names.add(wanted);
-    return wanted;
-  }
-  const dot = wanted.lastIndexOf('.');
-  const stem = dot > 0 ? wanted.slice(0, dot) : wanted;
-  const extension = dot > 0 ? wanted.slice(dot) : '';
-  let n = 2;
-  while (names.has(`${stem} (${n})${extension}`)) n += 1;
-  const name = `${stem} (${n})${extension}`;
-  names.add(name);
-  return name;
-}
+const index = indexInventory(roots);
+const nameBook = new NameBook(index);
 
 if (!apply) {
   const byRule = corrections.reduce<Record<string, number>>((acc, c) => {
@@ -94,7 +58,7 @@ const client = new PcloudHttpClient();
 const created = new Map<string, number>();
 
 async function ensureFolder(path: string): Promise<number | null> {
-  const known = allIds.get(path) ?? created.get(path);
+  const known = index.idByPath.get(path) ?? created.get(path);
   if (known !== undefined) return known;
   const parentPath = path.replace(/\/[^/]+$/, '');
   if (!parentPath) return null;
@@ -118,7 +82,7 @@ for (const correction of corrections) {
   try {
     const destination = await ensureFolder(correction.toPath);
     if (destination === null) throw new Error(`destination unreachable: ${correction.toPath}`);
-    const toname = freeName(correction.toPath, correction.name);
+    const toname = nameBook.claim(correction.toPath, correction.name, pickFreeName);
     await client.json('renamefile', { fileid: correction.id, tofolderid: destination, toname });
     applied += 1;
     manifest.push({ ...correction, toname, toFolderid: destination });

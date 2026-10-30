@@ -11,6 +11,9 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { PcloudHttpClient } from '/Users/felix/Documents/pcloud_mcp/src/core/http/pcloudClient.js';
 import { detectYear, detectSemester, detectDocType, type Unit } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/classify.js';
 import { classifyByText } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/contentClassify.js';
+import { resolveUnitFromPath } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/pathClassify.js';
+import { indexInventory, NameBook } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/inventory.js';
+import { freeName } from '/Users/felix/Documents/pcloud_mcp/scripts/lib/naming.js';
 
 interface InvNode {
   name: string;
@@ -37,16 +40,16 @@ const maxFiles = Number(process.argv[4] ?? 100);
 
 const roots = JSON.parse(await readFile(inventoryPath, 'utf8')) as InvNode[];
 
-const dirs: InvNode[] = []; const files: InvNode[] = [];
+const files: InvNode[] = [];
 (function walk(list: InvNode[]): void {
   for (const node of list) {
-    if (node.isfolder) { dirs.push(node); walk(node.children ?? []); }
+    if (node.isfolder) walk(node.children ?? []);
     else files.push(node);
   }
 })(roots);
 
-const allIds = new Map<string, number>();
-for (const dir of dirs) allIds.set(dir.path, dir.folderid!);
+const index = indexInventory(roots);
+const nameBook = new NameBook(index);
 
 /** Extract text from a Word document by reading its XML part. */
 async function extractDocxText(fileid: number): Promise<string> {
@@ -126,7 +129,7 @@ const moves: MoveOp[] = [];
 const foldersToCreate = new Map<string, { path: string; name: string; parentPath: string; parentid: number }>();
 
 function ensureFolder(targetPath: string): number | null {
-  const known = allIds.get(targetPath);
+  const known = index.idByPath.get(targetPath);
   if (known !== undefined) return known;
   const parentPath = targetPath.replace(/\/[^/]+$/, '');
   if (!parentPath) return null;
@@ -138,17 +141,21 @@ function ensureFolder(targetPath: string): number | null {
   return 0;
 }
 
-function freeName(targetPath: string, wanted: string): string {
-  return wanted;
-}
-
 async function processFile(file: InvNode): Promise<void> {
   const year = detectYear(file.path) ?? '4A';
   const semester = detectSemester(file.path);
   const base = `/Pharmacie/${year}${semester ? `/${semester}` : ''}`;
 
-  const text = await extractText(file);
-  const unit = classifyByContent(text, file.name, year);
+  // The folder names above the file say what it is about, and they say it
+  // better than the first pages of a long document do. The content is the
+  // fallback for the folders that say nothing.
+  let unit = resolveUnitFromPath(file.path);
+  let basis = 'path';
+  if (!unit) {
+    const text = await extractText(file);
+    unit = classifyByContent(text, file.name, year);
+    basis = 'content';
+  }
   if (!unit) return;
 
   const docType = detectDocType(file.name) ?? 'Cours';
@@ -162,8 +169,8 @@ async function processFile(file: InvNode): Promise<void> {
     from: file.path,
     toPath: target,
     toFolderid: targetId,
-    toname: freeName(target, file.name),
-    reason: `${unit}/${docType} from ${file.path} (content: ${text.slice(0,80)}...)`,
+    toname: nameBook.claim(target, file.name, freeName),
+    reason: `${unit}/${docType} from ${file.path} (${basis})`,
   });
 }
 

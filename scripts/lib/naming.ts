@@ -192,3 +192,24 @@ export function dropRedundantUePrefix(title: string): string {
     .trim();
   return stripped.length >= 3 ? stripped : title;
 }
+
+/**
+ * A name that does not collide with what the folder already holds.
+ *
+ * pCloud replaces the file that sits under the target name, so a move that
+ * reuses a name silently destroys what was there. The suffix follows the
+ * convention the drive exports already left in the corpus.
+ */
+export function freeName(taken: ReadonlySet<string>, wanted: string): string {
+  if (!taken.has(wanted)) return wanted;
+  const dot = wanted.lastIndexOf('.');
+  const stem = dot > 0 ? wanted.slice(0, dot) : wanted;
+  const extension = dot > 0 ? wanted.slice(dot) : '';
+  let counter = 2;
+  let candidate = `${stem} (${counter})${extension}`;
+  while (taken.has(candidate)) {
+    counter += 1;
+    candidate = `${stem} (${counter})${extension}`;
+  }
+  return candidate;
+}
