@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { readPkgFromHere } from '../pkg.js';
+import { Pacer } from './pacer.js';
 
 /**
  * Actionable hints for known pCloud result codes.
@@ -96,17 +97,19 @@ interface PcloudApiEnvelope {
 }
 
 /**
- * Simple pCloud HTTP client with timeout and retries.
+ * Simple pCloud HTTP client with timeout, retries, and rate pacing.
  * Follows the pcloud-sdk-js patterns:
  *   - access_token as query parameter (not Bearer)
  *   - Rejects on non-zero result codes
  *   - Retries only on transient errors (429, 5xx, network)
+ *   - Proactive token-bucket pacer to stay under pCloud's ~100 TPS ceiling
  */
 export class PcloudHttpClient {
   private readonly baseUrl: string;
   readonly timeoutMs: number;
   private readonly maxRetries: number;
   private readonly packageVersion: string;
+  private readonly pacer: Pacer;
 
   constructor(
     baseUrl: string = `https://${config.apiServer}`,
@@ -117,6 +120,12 @@ export class PcloudHttpClient {
     this.timeoutMs = timeoutMs;
     this.maxRetries = maxRetries;
     this.packageVersion = readPkgFromHere().version ?? 'unknown';
+    this.pacer = new Pacer({
+      minSleepMs: config.pacerMinSleepMs,
+      maxSleepMs: config.pacerMaxSleepMs,
+      decay: config.pacerDecay,
+      initialRate: config.pacerInitialRate,
+    });
   }
 
   /**
@@ -147,6 +156,9 @@ export class PcloudHttpClient {
 
     let lastError: Error | null = null;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      // Proactive pacing: wait for token before sending request
+      await this.pacer.acquire();
+
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
       try {
@@ -165,6 +177,8 @@ export class PcloudHttpClient {
             // Drain the body so the connection can be released back to the
             // pool; otherwise the next retry may stall on socket exhaustion.
             await response.text().catch(() => {});
+            // Signal pacer to back off on throttle
+            this.pacer.noteThrottle();
             if (attempt < this.maxRetries) {
               await new Promise((r) => setTimeout(r, 500 * Math.pow(2, attempt)));
               continue;
@@ -182,9 +196,17 @@ export class PcloudHttpClient {
           );
         }
 
+        // Success: signal pacer to gradually recover rate
+        this.pacer.noteSuccess();
+
         const data = (await response.json()) as T & PcloudApiEnvelope;
 
         if (data.result !== 0) {
+          // pCloud API-level error (result != 0 but HTTP 200)
+          // Some result codes (4000) indicate rate limiting — back off
+          if (data.result === 4000) {
+            this.pacer.noteThrottle();
+          }
           throw new PcloudError(
             data.result,
             typeof data.error === 'string'
@@ -231,6 +253,7 @@ export class PcloudHttpClient {
     file: { blob: Blob; filename: string },
     options: { auth?: boolean } = {}
   ): Promise<unknown> {
+    await this.pacer.acquire();
     const useAuth = options.auth !== false;
     const url = new URL(`${this.baseUrl}/${endpoint}`);
     if (useAuth && config.accessToken) {
@@ -252,10 +275,17 @@ export class PcloudHttpClient {
       });
       if (!response.ok) {
         const body = await response.text().catch(() => '').then((t) => t.slice(0, 200));
+        if (response.status === 429 || response.status >= 500) {
+          this.pacer.noteThrottle();
+        }
         throw new Error(`pCloud upload ${endpoint} failed: ${response.status} ${response.statusText} ${body}`);
       }
+      this.pacer.noteSuccess();
       const data = (await response.json()) as PcloudApiEnvelope;
       if (data.result !== 0) {
+        if (data.result === 4000) {
+          this.pacer.noteThrottle();
+        }
         throw new PcloudError(
           data.result,
           typeof data.error === 'string' ? data.error : `Unknown error (result: ${data.result})`
@@ -271,6 +301,7 @@ export class PcloudHttpClient {
    * Raw text response (used by gettextfile which streams the file body, not JSON).
    */
   async text(endpoint: string, params: Record<string, string | number | boolean> = {}): Promise<string> {
+    await this.pacer.acquire();
     const url = new URL(`${this.baseUrl}/${endpoint}`);
     if (config.accessToken) url.searchParams.append('access_token', config.accessToken);
     for (const [k, v] of Object.entries(params)) {
@@ -285,8 +316,12 @@ export class PcloudHttpClient {
         signal: controller.signal,
       });
       if (!response.ok) {
+        if (response.status === 429 || response.status >= 500) {
+          this.pacer.noteThrottle();
+        }
         throw new Error(`pCloud ${endpoint} failed: ${response.status} ${response.statusText}`);
       }
+      this.pacer.noteSuccess();
       return await response.text();
     } finally {
       clearTimeout(timeoutId);

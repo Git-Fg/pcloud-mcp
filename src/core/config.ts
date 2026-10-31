@@ -19,6 +19,11 @@ type AllowedApiServer = (typeof ALLOWED_API_SERVERS)[number];
 export const config = {
   apiServer: validateApiServer(getEnv('PCLOUD_API_SERVER')),
   accessToken: getEnv('PCLOUD_ACCESS_TOKEN'),
+  // Pacer configuration for outbound rate limiting to pCloud API
+  pacerMinSleepMs: Number(getEnv('PCLOUD_PACER_MIN_SLEEP') ?? 10),
+  pacerMaxSleepMs: Number(getEnv('PCLOUD_PACER_MAX_SLEEP') ?? 2000),
+  pacerDecay: Number(getEnv('PCLOUD_PACER_DECAY') ?? 2),
+  pacerInitialRate: Number(getEnv('PCLOUD_PACER_INITIAL_RATE') ?? 50),
 };
 
 function validateApiServer(input: string | undefined): string {
