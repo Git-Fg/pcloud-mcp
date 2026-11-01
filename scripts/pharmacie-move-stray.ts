@@ -24,12 +24,6 @@ interface InvNode {
   children?: InvNode[];
 }
 
-interface RootEntry {
-  name: string;
-  folderid: number;
-  isfolder: boolean;
-}
-
 interface MoveOp {
   id: number;
   from: string;
@@ -104,26 +98,16 @@ if (!apply) {
 
 const client = new PcloudHttpClient();
 
-/** The identifier of a folder at the account root, created when missing. */
-async function rootFolder(name: string): Promise<number> {
-  const listing = await client.json<{ metadata: { contents?: RootEntry[] } }>('listfolder', { folderid: 0 });
-  const existing = listing.metadata.contents?.find((entry) => entry.name === name && entry.isfolder);
-  if (existing) return existing.folderid;
-  const created = await client.json<{ metadata: { folderid: number } }>('createfolder', { folderid: 0, name });
-  return created.metadata.folderid;
-}
-
 let applied = 0;
 let failed = 0;
 for (const move of moves) {
   try {
     if (move.kind === 'folder') {
-      const destinationId = await rootFolder(move.toname);
-      await client.json('renamefolder', { folderid: move.id, tofolderid: destinationId, toname: move.toname });
+      // A folder that leaves the tree lands at the account root, under its
+      // own name — not inside a folder of the same name.
+      await client.json('renamefolder', { folderid: move.id, tofolderid: 0, toname: move.toname });
     } else {
       const target = move.toPath.replace(/\/[^/]+$/, '');
-      const listing = await client.json<{ metadata: { contents?: RootEntry[] } }>('listfolder', { folderid: 0 });
-      void listing;
       const pipeline = byPath.get(target);
       if (!pipeline) throw new Error(`destination folder not in inventory: ${target}`);
       await client.json('renamefile', {

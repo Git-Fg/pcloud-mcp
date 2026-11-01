@@ -49,16 +49,36 @@ const files: InvNode[] = [];
   }
 })(roots);
 
+/** The kinds of material, which name what a file is rather than where it is. */
+const DOC_TYPES = [
+  'Cours',
+  'Fiches',
+  'Annales',
+  'ED',
+  'TD',
+  'Transcriptions',
+  'Transcription TXT',
+  'Autres',
+  'Images',
+  'Videos',
+  'Projets',
+  'Roneos',
+  'Supports',
+  'Word DOCX',
+  'Markdown',
+];
+
 /** The unit a file sits under, or the folder that stands in for one. */
 function unitOf(path: string): string | null {
   const segments = path.split('/');
   const unit = segments.find((segment) => /^UE-\d{2}-[A-Z-]+$/.test(segment));
   if (unit) return unit.replace(/^UE-/, 'UE');
-  // Material outside a unit is named after the folder that holds it.
+  // Material outside a unit is named after the folder that tells it apart:
+  // the deepest one that is not the year and not a kind of material.
   const holder = segments
     .slice(2, -1)
     .reverse()
-    .find((segment) => segment && !/^(3A|4A|5A|CSP|DFGSP3 - 3eme annee|DFASP1 - 4eme annee)$/.test(segment));
+    .find((segment) => segment && !/^(3A|4A|5A)$/.test(segment) && !DOC_TYPES.includes(segment));
   return holder ? holder.replace(/[^A-Za-z0-9]+/g, '-').slice(0, 24) : null;
 }
 

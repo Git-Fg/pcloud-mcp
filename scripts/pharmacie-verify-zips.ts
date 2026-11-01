@@ -37,8 +37,13 @@ interface ZipPlan {
   path: string;
   size: number;
   members: number;
-  missing: string[];
-  verdict: 'redundant' | 'holds-unique-content';
+  /** Members the tree holds under the same name and the same size. */
+  present: string[];
+  /** Members whose content is in the tree under a name the archive does not know. */
+  renamed: string[];
+  /** Members the tree does not hold at all, whatever the name. */
+  absent: string[];
+  verdict: 'proven-redundant' | 'needs-proof' | 'holds-unique-content';
 }
 
 const inventoryPath = process.argv[2] ?? '/tmp/pharmacie-inv-5.json';
@@ -64,6 +69,22 @@ for (const file of files) {
   const list = byNameAndSize.get(key) ?? [];
   list.push(file);
   byNameAndSize.set(key, list);
+}
+
+/**
+ * The files of the tree by size alone.
+ *
+ * The curation renamed a good part of the corpus, so a member of an archive
+ * can be in the tree under a name the archive does not know. Size alone
+ * cannot prove identity, but it separates "absent" from "renamed", and the
+ * difference decides whether an archive is the only copy of its content.
+ */
+const bySize = new Map<number, InvNode[]>();
+for (const file of files) {
+  if (file.isfolder) continue;
+  const list = bySize.get(file.size ?? 0) ?? [];
+  list.push(file);
+  bySize.set(file.size ?? 0, list);
 }
 
 const client = new PcloudHttpClient();
@@ -159,48 +180,80 @@ for (const zip of zips) {
       path: zip.path,
       size: zip.size ?? 0,
       members: 0,
-      missing: ['<could not read the archive>'],
+      present: [],
+      renamed: [],
+      absent: ['<could not read the archive>'],
       verdict: 'holds-unique-content',
     });
     continue;
   }
 
-  const missing: string[] = [];
+  const present: string[] = [];
+  const renamed: string[] = [];
+  const absent: string[] = [];
   for (const member of members) {
     const key = `${member.name.split('/').pop()} ${member.size}`;
-    if (!byNameAndSize.has(key)) missing.push(member.name);
+    if (byNameAndSize.has(key)) {
+      present.push(member.name);
+      continue;
+    }
+    // Not under the name the archive knows: is the content in the tree at
+    // all, under a name the curation gave it? A size on its own does not
+    // prove identity, so such members need a proof before the archive goes.
+    if ((bySize.get(member.size) ?? []).length > 0) renamed.push(member.name);
+    else absent.push(member.name);
   }
+
+  const verdict =
+    absent.length > 0 ? 'holds-unique-content' : renamed.length > 0 ? 'needs-proof' : 'proven-redundant';
 
   plans.push({
     fileid: zip.fileid!,
     path: zip.path,
     size: zip.size ?? 0,
     members: members.length,
-    missing,
-    verdict: missing.length === 0 ? 'redundant' : 'holds-unique-content',
+    present,
+    renamed,
+    absent,
+    verdict,
   });
   process.stderr.write(
-    `  ${plans[plans.length - 1].verdict.padEnd(22)} ${members.length} members, ${missing.length} missing  ${zip.path.replace('/Pharmacie/', '')}\n`,
+    `  ${verdict.padEnd(22)} ${members.length} members, ${present.length} by name, ${renamed.length} by size only, ${absent.length} absent  ${zip.path.replace('/Pharmacie/', '')}\n`,
   );
 }
 
-const redundant = plans.filter((plan) => plan.verdict === 'redundant');
-const bytes = redundant.reduce((sum, plan) => sum + plan.size, 0);
+const proven = plans.filter((plan) => plan.verdict === 'proven-redundant');
+const needsProof = plans.filter((plan) => plan.verdict === 'needs-proof');
+const bytes = proven.reduce((sum, plan) => sum + plan.size, 0);
 process.stderr.write(
-  `\n${redundant.length}/${plans.length} archives hold nothing the tree lacks — ${(bytes / 1048576).toFixed(0)} MB\n`,
+  `\n${proven.length}/${plans.length} archives hold nothing the tree lacks — ${(bytes / 1048576).toFixed(0)} MB\n`,
+);
+process.stderr.write(
+  `${needsProof.length} archives hold only content that is in the tree under another name — their members need a proof before they go\n`,
 );
 
-await writeFile(outPlan, JSON.stringify({ plans, redundant: redundant.map((p) => p.fileid) }, null, 1));
+await writeFile(
+  outPlan,
+  JSON.stringify(
+    {
+      plans,
+      proven: proven.map((plan) => plan.fileid),
+      needsProof: needsProof.map((plan) => plan.fileid),
+    },
+    null,
+    1,
+  ),
+);
 process.stderr.write(`Wrote ${outPlan}\n`);
 
 if (!apply) {
-  process.stderr.write('Dry run. Pass --apply to delete the redundant archives.\n');
+  process.stderr.write('Dry run. Pass --apply to delete the proven-redundant archives.\n');
   process.exit(0);
 }
 
 let deleted = 0;
 let failed = 0;
-for (const plan of redundant) {
+for (const plan of proven) {
   try {
     await client.json('deletefile', { fileid: plan.fileid });
     deleted += 1;
