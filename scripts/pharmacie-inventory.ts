@@ -19,6 +19,8 @@ interface PcloudItem {
   parentfolderid?: number;
   size?: number;
   hash?: number;
+  modified?: string;
+  contenttype?: string;
 }
 
 interface PcloudListing {
@@ -35,6 +37,9 @@ export interface InventoryNode {
   parentfolderid?: number;
   size?: number;
   hash?: number;
+  /** RFC-2822 date of the last change, as pCloud reports it. */
+  modified?: string;
+  contenttype?: string;
   children?: InventoryNode[];
 }
 
@@ -69,6 +74,8 @@ async function walk(rootId: number, rootName: string): Promise<InventoryNode[]> 
           parentfolderid: entry.parentfolderid,
           size: entry.size,
           hash: entry.hash,
+          modified: entry.modified,
+          contenttype: entry.contenttype,
         };
         if (item.node) {
           item.node.children ??= [];
