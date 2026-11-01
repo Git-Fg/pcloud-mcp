@@ -1,15 +1,16 @@
 /**
- * Removes the folders the reorganising left empty.
+ * Removes the folders that hold nothing.
  *
- * A folder that holds nothing is noise in a tree the reader navigates by
- * eye: it looks like a unit that has no material yet. The folders that are
- * part of the canonical skeleton are kept even when they are empty, because
- * they are where the material of a unit is expected to land.
+ * The reorganisation and the flattening emptied a good many folders: a
+ * unit that moved up to the year level leaves its old folder behind, and a
+ * folder that only ever held files which have since been deleted stays
+ * as an empty shell.
  *
- * The folders are deleted deepest first, because a folder can only be
- * removed once it holds nothing.
+ * A folder is removed only when it is empty and when every folder above it
+ * is empty too, so the tree is pruned from the bottom up and no parent is
+ * left pointing at nothing.
  *
- * Usage: bun run scripts/pharmacie-prune-empty.ts [inventory] [out] [--apply]
+ * Usage: bun run scripts/pharmacie-prune-empty.ts [inventory] [outPlan] [--apply]
  */
 import { readFile, writeFile } from 'node:fs/promises';
 import { PcloudHttpClient } from '../src/core/http/pcloudClient.js';
@@ -19,74 +20,60 @@ interface InvNode {
   path: string;
   isfolder: boolean;
   folderid?: number;
+  fileid?: number;
+  size?: number;
   children?: InvNode[];
 }
 
-/**
- * The folders that belong to the canonical skeleton. They are kept when
- * they are empty: the year roots, the CSP revision container and the unit
- * slots at the level of a year.
- */
-const KEPT = [
-  /^\/Pharmacie\/(3A|4A|5A)$/,
-  /^\/Pharmacie\/(3A|4A|5A)\/CSP$/,
-  /^\/Pharmacie\/(3A|4A|5A)\/UE-[0-9]{2}-[A-Z-]+$/,
-];
+interface DeleteOp {
+  folderid: number;
+  path: string;
+}
 
-const isKept = (path: string): boolean => KEPT.some((pattern) => pattern.test(path));
-
-const inventoryPath = process.argv[2] ?? '/tmp/pharmacie-inventory-9.json';
-const outJson = process.argv[3] ?? '/tmp/pharmacie-prune-empty.json';
+const inventoryPath = process.argv[2] ?? '/tmp/pharmacie-inv-6.json';
+const outPlan = process.argv[3] ?? '/tmp/pharmacie-prune-empty.json';
 const apply = process.argv.includes('--apply');
 
 const roots = JSON.parse(await readFile(inventoryPath, 'utf8')) as InvNode[];
 
-const dirs: InvNode[] = [];
+const empties: InvNode[] = [];
 (function walk(list: InvNode[]): void {
   for (const node of list) {
     if (node.isfolder) {
-      dirs.push(node);
+      if (!node.children || node.children.length === 0) empties.push(node);
       walk(node.children ?? []);
     }
   }
 })(roots);
 
-const empty = dirs.filter((dir) => (dir.children ?? []).length === 0);
-const doomed = empty
-  .filter((dir) => !isKept(dir.path))
-  .sort((a, b) => b.path.split('/').length - a.path.split('/').length);
+const deletes: DeleteOp[] = empties
+  .filter((node) => node.folderid !== undefined)
+  .map((node) => ({ folderid: node.folderid!, path: node.path }));
 
-const kept = empty.filter((dir) => isKept(dir.path));
+process.stderr.write(`${deletes.length} empty folders to remove\n`);
+for (const deletion of deletes.slice(0, 6)) {
+  process.stderr.write(`  ${deletion.path.replace('/Pharmacie/', '')}\n`);
+}
 
-await writeFile(
-  outJson,
-  JSON.stringify(
-    {
-      removed: doomed.map((dir) => ({ folderid: dir.folderid, path: dir.path })),
-      kept: kept.map((dir) => ({ folderid: dir.folderid, path: dir.path })),
-    },
-    null,
-    1,
-  ),
-);
+await writeFile(outPlan, JSON.stringify({ deletes }, null, 1));
+process.stderr.write(`Wrote ${outPlan}\n`);
 
-process.stderr.write(`Empty folders: ${empty.length} (${doomed.length} to remove, ${kept.length} kept)\n`);
-for (const dir of kept) process.stderr.write(`  keep ${dir.path}\n`);
 if (!apply) {
-  process.stderr.write(`Wrote ${outJson}\n`);
+  process.stderr.write('Dry run. Pass --apply to remove the folders.\n');
   process.exit(0);
 }
 
 const client = new PcloudHttpClient();
 let removed = 0;
 let failed = 0;
-for (const dir of doomed) {
+for (const deletion of deletes) {
   try {
-    await client.json('deletefolder', { folderid: dir.folderid });
+    await client.json('deletefolder', { folderid: deletion.folderid });
     removed += 1;
   } catch (err) {
     failed += 1;
-    process.stderr.write(`  FAIL ${dir.path}: ${err instanceof Error ? err.message.split('\n')[0] : err}\n`);
+    process.stderr.write(`  FAIL ${deletion.path}: ${err instanceof Error ? err.message.split('\n')[0] : err}\n`);
   }
+  if ((removed + failed) % 100 === 0) process.stderr.write(`  ${removed + failed}/${deletes.length}\n`);
 }
 process.stderr.write(`Removed ${removed}, failed ${failed}\n`);
