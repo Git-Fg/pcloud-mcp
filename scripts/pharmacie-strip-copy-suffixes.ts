@@ -80,16 +80,65 @@ for (const file of files) {
 
 const renameFiles: Array<{ fileid: number; path: string; toname: string }> = [];
 const keptBecauseOfCollision: string[] = [];
+
+// The name a file would take has to be free both in the folder it leaves and
+// between the files that leave it: two files of one folder can end up on the
+// same name once the counter is gone.
+interface Candidate {
+  file: InvNode;
+  base: string;
+  counter: string;
+  extension: string;
+  dir: string;
+}
+
+const candidates: Candidate[] = [];
 for (const file of files) {
-  const match = file.name.match(/^(.*) \(\d+\)(\.[A-Za-z0-9]+)$/);
+  const match = file.name.match(/^(.*?)\s*\((\d+)\)(\.[A-Za-z0-9]+)$/);
   if (!match || file.fileid === undefined) continue;
-  const stripped = match[1] + match[2];
-  const dir = file.path.slice(0, file.path.lastIndexOf('/'));
-  if (siblingFileNames.get(dir)?.has(stripped)) {
-    keptBecauseOfCollision.push(file.path);
+  if (!isCopyCounter(match[2])) continue;
+  candidates.push({
+    file,
+    base: match[1],
+    counter: match[2],
+    extension: match[3],
+    dir: file.path.slice(0, file.path.lastIndexOf('/')),
+  });
+}
+
+/** A path cannot hold a NUL, so it separates the parts of a key safely. */
+const SEPARATOR = String.fromCharCode(0);
+
+const groupSize = new Map<string, number>();
+for (const candidate of candidates) {
+  const key = `${candidate.dir}${SEPARATOR}${candidate.base}${candidate.extension}`;
+  groupSize.set(key, (groupSize.get(key) ?? 0) + 1);
+}
+
+for (const candidate of candidates) {
+  const plain = candidate.base + candidate.extension;
+  const key = `${candidate.dir}${SEPARATOR}${plain}`;
+  const siblings = siblingFileNames.get(candidate.dir)!;
+  if (siblings.has(plain) || (groupSize.get(key) ?? 0) > 1) {
+    // The counter is what tells this file apart from its twin, so it stays,
+    // out of the brackets where pCloud put it.
+    const numbered = `${candidate.base} - ${candidate.counter}${candidate.extension}`;
+    if (siblings.has(numbered)) {
+      keptBecauseOfCollision.push(candidate.file.path);
+      continue;
+    }
+    renameFiles.push({
+      fileid: candidate.file.fileid!,
+      path: candidate.file.path,
+      toname: numbered,
+    });
     continue;
   }
-  renameFiles.push({ fileid: file.fileid, path: file.path, toname: stripped });
+  renameFiles.push({
+    fileid: candidate.file.fileid!,
+    path: candidate.file.path,
+    toname: plain,
+  });
 }
 
 await writeFile(
