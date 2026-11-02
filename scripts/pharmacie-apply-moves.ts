@@ -50,6 +50,17 @@ const roots = JSON.parse(await readFile(inventoryPath, 'utf8')) as InvNode[];
 const index = indexInventory(roots);
 const nameBook = new NameBook(index);
 
+/**
+ * The inventory is the authority on fileids. A plan written by hand carries
+ * whatever id the author typed, and pCloud answers 2009 on an id it does
+ * not recognise — the id in the tree is the one that works. Every move
+ * therefore takes its id from the inventory, looked up by path.
+ */
+const fileidByPath = new Map<string, number>();
+for (const file of index.files) {
+  if (file.fileid !== undefined) fileidByPath.set(file.path.normalize('NFC'), file.fileid);
+}
+
 const byUnit = moves.reduce<Record<string, number>>((acc, move) => {
   const unit = move.toPath.match(/\/(UE-[0-9]{2}-[A-Z-]+)\//)?.[1] ?? move.toPath;
   acc[unit] = (acc[unit] ?? 0) + 1;
@@ -88,16 +99,17 @@ async function ensureFolder(path: string): Promise<number | null> {
 let applied = 0;
 let failed = 0;
 const failures: Array<{ from: string; error: string }> = [];
-const manifest: Array<PlannedMove & { appliedName: string; toFolderid: number }> = [];
+const manifest: Array<PlannedMove & { appliedName: string; toFolderid: number; fileid: number }> = [];
 
 for (const move of moves) {
   try {
     const destination = await ensureFolder(move.toPath);
     if (destination === null) throw new Error(`destination unreachable: ${move.toPath}`);
+    const fileid = fileidByPath.get(move.from.normalize('NFC')) ?? move.id;
     const appliedName = nameBook.claim(move.toPath, move.toname ?? move.from.split('/').pop()!, freeName);
-    await client.json('renamefile', { fileid: move.id, tofolderid: destination, toname: appliedName });
+    await client.json('renamefile', { fileid, tofolderid: destination, toname: appliedName });
     applied += 1;
-    manifest.push({ ...move, appliedName, toFolderid: destination });
+    manifest.push({ ...move, appliedName, toFolderid: destination, fileid });
   } catch (err) {
     failed += 1;
     failures.push({ from: move.from, error: err instanceof Error ? err.message : String(err) });
