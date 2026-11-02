@@ -43,7 +43,13 @@ const inventoryFlag = process.argv.indexOf('--inventory');
 const inventoryArg = inventoryFlag >= 0 ? process.argv[inventoryFlag + 1] : undefined;
 
 const plan = JSON.parse(await readFile(planPath, 'utf8')) as { moves: PlannedMove[] };
-const moves = plan.moves;
+// A destination path with a trailing slash names the same folder as one
+// without it, but it is a different key in the name book and a broken
+// parent for the folder walk, so the paths are normalised once here.
+const moves = plan.moves.map((move) => ({
+  ...move,
+  toPath: move.toPath.replace(/\/+$/, ''),
+}));
 
 const inventoryPath = inventoryArg ?? '/tmp/pharmacie-inventory-19.json';
 const roots = JSON.parse(await readFile(inventoryPath, 'utf8')) as InvNode[];
@@ -80,11 +86,12 @@ if (!apply) {
 const client = new PcloudHttpClient();
 const created = new Map<string, number>();
 
-async function ensureFolder(path: string): Promise<number | null> {
+async function ensureFolder(rawPath: string): Promise<number | null> {
+  const path = rawPath.replace(/\/+$/, '');
   const known = index.idByPath.get(path) ?? created.get(path);
   if (known !== undefined) return known;
   const parentPath = path.replace(/\/[^/]+$/, '');
-  if (!parentPath) return null;
+  if (!parentPath || parentPath === path) return null;
   const parentId = await ensureFolder(parentPath);
   if (parentId === null) return null;
   const name = path.slice(parentPath.length + 1);
